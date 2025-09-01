@@ -1,0 +1,82 @@
+# Miscellaneous
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+.atom/
+.build/
+.buildlog/
+.history
+.svn/
+.swiftpm/
+migrate_working_dir/
+
+# IntelliJ related
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# VS Code settings (uncomment if you want to ignore)
+#.vscode/
+
+# Flutter/Dart/Pub related
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+build/
+coverage/
+generated_plugin_registrant.dart
+
+# iOS related
+ios/Flutter/App.framework
+ios/Flutter/Flutter.framework
+ios/Flutter/Flutter.podspec
+ios/Flutter/Generated.xcconfig
+ios/Flutter/ephemeral/
+ios/Flutter/ServiceDefinitions.json
+ios/Runner.xcworkspace/
+ios/Pods/
+ios/Podfile.lock
+ios/Podfile
+ios/.symlinks/
+ios/profile
+ios/Runner/GeneratedPluginRegistrant.*
+ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-*
+
+# Android related
+android/.gradle/
+android/app/build/
+android/build/
+android/.idea/
+android/local.properties
+android/.settings/
+android/.cxx/
+android/gradle/
+android/gradlew
+android/gradlew.bat
+android/key.properties
+
+# Web related
+web/.dart_tool/
+web/build/
+
+# Symbolication related
+app.*.symbols
+
+# Obfuscation related
+app.*.map.json
+
+# Others
+*.lock
+*.tmp
+*.temp
+*.bak
+*.orig
+*.swp
+*.swo
+*.swn

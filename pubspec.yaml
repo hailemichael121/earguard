@@ -1,0 +1,56 @@
+name: earguard
+description: A Flutter app to remind users to switch ears during long calls.
+publish_to: "none"
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.9.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  another_telephony: ^0.4.1
+  vibration: ^3.1.3
+  audioplayers: ^6.1.0
+  permission_handler: ^11.3.1
+  shared_preferences: ^2.3.2
+  android_intent_plus: ^5.3.1
+  flutter_local_notifications: ^19.4.1
+  flutter_neumorphic_plus: ^3.5.0
+  cupertino_icons: ^1.0.8
+  flutter_native_splash: ^2.4.1
+  flutter_foreground_task: ^9.1.0
+  flutter_phone_call_state: ^0.1.0
+  phone_state: ^2.1.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+  flutter_launcher_icons: ^0.13.1
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/icons/app_icon.png
+    - assets/sounds/reminder1.mp3
+    - assets/sounds/reminder2.mp3
+    - assets/sounds/reminder3.mp3
+    - assets/sounds/reminder4.mp3
+    - assets/sounds/reminder5.mp3
+    - assets/sounds/reminder6.mp3
+
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/icons/app_icon.png"
+  min_sdk_android: 21
+
+flutter_native_splash:
+  color: "#F5F5F5"
+  image: assets/icons/splash_icon.png
+  ios: false
+  fullscreen: true
+  android_12:
+    image: assets/icons/splash_icon.png
+    color: "#F5F5F5"
