@@ -3,14 +3,15 @@ import {Animated, Platform, StatusBar} from 'react-native';
 import {SafeAreaProvider} from 'react-native-safe-area-context';
 import {AboutScreen} from './src/screens/AboutScreen';
 import {HomeScreen} from './src/screens/HomeScreen';
-import {OnboardingScreen} from './src/screens/OnboardingScreen';
+import {EnhancedOnboardingScreen} from './src/screens/EnhancedOnboardingScreen';
 import {SettingsScreen} from './src/screens/SettingsScreen';
+import {SplashScreen} from './src/screens/SplashScreen';
 import {EarGuardNative} from './src/native/earguard';
 
-type Screen = 'onboarding' | 'home' | 'settings' | 'about';
+type Screen = 'splash' | 'onboarding' | 'home' | 'settings' | 'about';
 
 function App() {
-  const [screen, setScreen] = useState<Screen>('onboarding');
+  const [screen, setScreen] = useState<Screen>('splash');
   const [refreshToken, setRefreshToken] = useState(0);
   const [aboutParams, setAboutParams] = useState({
     interval: 30,
@@ -56,9 +57,22 @@ function App() {
   return (
     <SafeAreaProvider>
       <StatusBar barStyle="dark-content" backgroundColor="#F4F7FF" />
-      <Animated.View style={sceneStyle}>
+      {screen === 'splash' && (
+        <SplashScreen
+          onComplete={() => {
+            if (Platform.OS !== 'android') {
+              setScreen('home');
+              return;
+            }
+            EarGuardNative.getOnboardingCompleted()
+              .then(done => setScreen(done ? 'home' : 'onboarding'))
+              .catch(() => setScreen('onboarding'));
+          }}
+        />
+      )}
+      <Animated.View style={[sceneStyle, {display: screen === 'splash' ? 'none' : 'flex'}]}>
         {screen === 'onboarding' && (
-          <OnboardingScreen
+          <EnhancedOnboardingScreen
             onFinish={() => {
               setScreen('home');
               setRefreshToken(token => token + 1);

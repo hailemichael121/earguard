@@ -70,6 +70,15 @@ Versioned export (from `pnpm build:apk`):
 - `android/app/build/outputs/apk/release/EarGuard-v<version>+<build>.apk`
 - `~/Desktop/EarGuard-v<version>+<build>.apk`
 
+### Live updates on phone
+
+- `pnpm dev` starts Metro only; keep it open while the app is installed on the phone.
+- `pnpm run` or `pnpm android` installs the debug app and connects it to Metro.
+- JavaScript and TypeScript edits should appear with Fast Refresh or `r`.
+- Native edits, icon generation, `app.json`, or Android/iOS resource changes need a rebuild/reinstall, not just a reload.
+- If Metro seems stale, restart it with `pnpm start -- --reset-cache`.
+- If a USB phone stops seeing Metro, run `pnpm metro:usb` again or relaunch the app from the Metro terminal.
+
 ### Equivalent explicit commands
 
 | Shortcut | Full command |

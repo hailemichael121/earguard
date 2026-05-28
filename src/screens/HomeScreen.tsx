@@ -14,6 +14,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import {SafeAreaView} from 'react-native-safe-area-context';
 import {COLORS, DEFAULT_PREFS} from '../constants';
 import {MagicBackground} from '../components/MagicBackground';
 import {StatusChip, type StatusChipVariant} from '../components/StatusChip';
@@ -401,7 +402,7 @@ export function HomeScreen({
   }
 
   return (
-    <View style={sharedStyles.screen}>
+    <SafeAreaView style={sharedStyles.screen} edges={['left', 'right', 'bottom']}>
       <MagicBackground />
       <ScrollView contentContainerStyle={styles.content}>
         <Animated.View
@@ -533,7 +534,7 @@ export function HomeScreen({
           </View>
         </TouchableOpacity>
       </Modal>
-    </View>
+    </SafeAreaView>
   );
 }
 

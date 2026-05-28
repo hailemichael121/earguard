@@ -9,6 +9,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import {SafeAreaView} from 'react-native-safe-area-context';
 import {COLORS, DEFAULT_PREFS, SOUND_MAP} from '../constants';
 import {AnimatedChip} from '../components/AnimatedChip';
 import {AnimatedSettingCard} from '../components/AnimatedSettingCard';
@@ -118,7 +119,7 @@ export function SettingsScreen({onBack, onSettingsChanged}: Props) {
   let cardIndex = 0;
 
   return (
-    <View style={sharedStyles.screen}>
+    <SafeAreaView style={sharedStyles.screen} edges={['left', 'right', 'bottom']}>
       <MagicBackground />
       <Animated.View
         style={[
@@ -290,7 +291,7 @@ export function SettingsScreen({onBack, onSettingsChanged}: Props) {
           </View>
         </View>
       </Modal>
-    </View>
+    </SafeAreaView>
   );
 }
 

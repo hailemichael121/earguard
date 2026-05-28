@@ -1,5 +1,6 @@
 import React, {useEffect, useState} from 'react';
 import {ScrollView, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
+import {SafeAreaView} from 'react-native-safe-area-context';
 import {COLORS} from '../constants';
 import {BUILD_INFO} from '../buildInfo';
 import {MagicBackground} from '../components/MagicBackground';
@@ -23,7 +24,7 @@ export function AboutScreen({interval, selectedSound, onBack}: Props) {
   }, []);
 
   return (
-    <View style={sharedStyles.screen}>
+    <SafeAreaView style={sharedStyles.screen} edges={['left', 'right', 'bottom']}>
       <MagicBackground />
       <View style={styles.header}>
         <TouchableOpacity onPress={onBack}>
@@ -54,7 +55,7 @@ export function AboutScreen({interval, selectedSound, onBack}: Props) {
           <Text style={styles.body}>This week: {insights?.weekTotal ?? 0} calls</Text>
         </View>
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }
 

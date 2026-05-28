@@ -3,6 +3,7 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
+    "icons:generate": "python3 scripts/generateAppIcons.py",
     "android:patch-gradle-plugin": "node scripts/patchGradlePlugin.js",
     "android:patch-metro": "node scripts/patchMetroKeyHandlers.js",
     "android:patch": "pnpm android:patch-gradle-plugin && pnpm android:patch-metro",
