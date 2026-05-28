@@ -27,6 +27,15 @@ export type Insights = {
   weekSeries: Array<{date: string; count: number}>;
 };
 
+export type CallHistoryEntry = {
+  id: string;
+  name: string;
+  number: string;
+  durationSeconds: number;
+  date: string;
+  type: 'INCOMING' | 'OUTGOING' | 'MISSED' | 'REJECTED' | 'VOICEMAIL' | 'BLOCKED' | 'UNKNOWN';
+};
+
 export type BuildInfo = {
   version: string;
   buildNumber: number;

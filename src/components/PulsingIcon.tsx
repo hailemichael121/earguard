@@ -1,45 +1,39 @@
 import React, {useEffect, useRef} from 'react';
 import {Animated, StyleSheet, View} from 'react-native';
-import {COLORS} from '../constants';
+import {IconBadge} from './Ui';
+import type {LineIconName} from './LineIcon';
 
 type Props = {
-  emoji: string;
+  icon: LineIconName;
   size?: number;
 };
 
-export function PulsingIcon({emoji, size = 48}: Props) {
+export function PulsingIcon({icon, size = 48}: Props) {
   const scaleAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
-    Animated.loop(
+    const loop = Animated.loop(
       Animated.sequence([
         Animated.timing(scaleAnim, {
-          toValue: 1.15,
-          duration: 1000,
+          toValue: 1.08,
+          duration: 900,
           useNativeDriver: true,
         }),
         Animated.timing(scaleAnim, {
           toValue: 1,
-          duration: 1000,
+          duration: 900,
           useNativeDriver: true,
         }),
       ]),
-    ).start();
+    );
+    loop.start();
+    return () => loop.stop();
   }, [scaleAnim]);
 
   return (
-    <Animated.View
-      style={[
-        styles.container,
-        {
-          width: size,
-          height: size,
-          transform: [{scale: scaleAnim}],
-        },
-      ]}
-    >
-      <View style={[styles.emoji, {fontSize: size * 0.7}]}>
-        {emoji}
+    <Animated.View style={[styles.container, {transform: [{scale: scaleAnim}]}]}>
+      <View>
+        <IconBadge name={icon} size={size} tone="primary" />
       </View>
     </Animated.View>
   );
@@ -49,8 +43,5 @@ const styles = StyleSheet.create({
   container: {
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  emoji: {
-    fontSize: 32,
   },
 });

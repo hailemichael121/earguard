@@ -30,10 +30,10 @@ export function StatusChip({variant, active = true, size = 52, style}: Props) {
   }, [active, pulse, variant]);
 
   const palette = {
-    ready: {ring: COLORS.success, fill: COLORS.success, bg: '#E8F8EF'},
-    call: {ring: COLORS.primary, fill: COLORS.primary, bg: '#E8F0FF'},
-    warn: {ring: COLORS.error, fill: COLORS.error, bg: '#FFEBEE'},
-    quiet: {ring: COLORS.accent, fill: COLORS.accent, bg: '#F0EBFF'},
+    ready: {ring: COLORS.success, fill: COLORS.success, bg: COLORS.surface},
+    call: {ring: COLORS.primary, fill: COLORS.primary, bg: COLORS.surface},
+    warn: {ring: COLORS.error, fill: COLORS.error, bg: COLORS.surface},
+    quiet: {ring: COLORS.accent, fill: COLORS.accent, bg: COLORS.surface},
   }[variant];
 
   const dimmed = !active;
@@ -43,6 +43,7 @@ export function StatusChip({variant, active = true, size = 52, style}: Props) {
       style={[
         styles.shell,
         dimmed ? styles.shellDimmed : null,
+        styles.shellDashed,
         {
           width: size,
           height: size,
@@ -121,8 +122,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     overflow: 'hidden',
   },
+  shellDashed: {
+    borderStyle: 'dashed',
+  },
   shellDimmed: {
-    borderColor: '#D1D5DB',
+    borderColor: COLORS.border,
     opacity: 0.45,
   },
   pulseRing: {

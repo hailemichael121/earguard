@@ -1,11 +1,12 @@
 import {NativeModules, Platform} from 'react-native';
 import {SOUND_MAP} from '../constants';
-import type {AppPreferences, Insights} from '../types';
+import type {AppPreferences, CallHistoryEntry, Insights} from '../types';
 
 type EarGuardNativeModule = {
   getPreferences: () => Promise<AppPreferences>;
   savePreferences: (prefs: Partial<AppPreferences>) => Promise<boolean>;
   getInsights: () => Promise<Insights>;
+  getCallHistory: (limit: number) => Promise<CallHistoryEntry[]>;
   recordCallCompleted: () => Promise<boolean>;
   getOnboardingCompleted: () => Promise<boolean>;
   setOnboardingCompleted: (completed: boolean) => Promise<boolean>;

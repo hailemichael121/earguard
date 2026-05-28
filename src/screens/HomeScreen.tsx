@@ -1,29 +1,29 @@
-import React, {useCallback, useEffect, useRef, useState} from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
   Animated,
-  FlatList,
   Linking,
-  Modal,
   PermissionsAndroid,
   Platform,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
 } from 'react-native';
-import {SafeAreaView} from 'react-native-safe-area-context';
-import {COLORS, DEFAULT_PREFS} from '../constants';
-import {MagicBackground} from '../components/MagicBackground';
-import {StatusChip, type StatusChipVariant} from '../components/StatusChip';
-import {EarGuardNative, soundLabelForFile} from '../native/earguard';
-import {sharedStyles} from '../styles';
-import type {AppPreferences, DebugLog, Insights} from '../types';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { COLORS, DEFAULT_PREFS } from '../constants';
+import { MagicBackground } from '../components/MagicBackground';
+import { AppMark, ActionButton, IconBadge, SectionHeader, SurfaceCard } from '../components/Ui';
+import { LineIcon } from '../components/LineIcon';
+import { EarGuardNative, soundLabelForFile } from '../native/earguard';
+import { sharedStyles } from '../styles';
+import type { AppPreferences, DebugLog } from '../types';
 
 type Props = {
   onOpenSettings: () => void;
+  onOpenCalls: () => void;
   onOpenAbout: (interval: number, sound: string) => void;
   refreshToken: number;
   setupCompleted?: boolean;
@@ -31,21 +31,22 @@ type Props = {
 
 export function HomeScreen({
   onOpenSettings,
+  onOpenCalls,
   onOpenAbout,
   refreshToken,
   setupCompleted = false,
 }: Props) {
   const [prefs, setPrefs] = useState<AppPreferences>(DEFAULT_PREFS);
-  const [insights, setInsights] = useState<Insights | null>(null);
   const [loading, setLoading] = useState(true);
-  const [statusMessage, setStatusMessage] = useState('Ready. Waiting for calls...');
+  const [statusMessage, setStatusMessage] = useState('Ready. Waiting for calls.');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isInCall, setIsInCall] = useState(false);
   const [isSimulating, setIsSimulating] = useState(false);
-  const [_callerInfo, setCallerInfo] = useState('Unknown');
-  const [showReminderOverlay, setShowReminderOverlay] = useState(false);
-  const [debugLogs, setDebugLogs] = useState<DebugLog[]>([]);
-  const [debugVisible, setDebugVisible] = useState(false);
+  const [callerInfo, setCallerInfo] = useState('Unknown');
+  const [insights, setInsights] = useState<Awaited<ReturnType<typeof EarGuardNative.getInsights>> | null>(null);
+  const [callHistory, setCallHistory] = useState<
+    Array<{id: string; name: string; number: string; durationSeconds: number; date: string; type: string}>
+  >([]);
   const isUpdating = useRef(false);
   const isInCallRef = useRef(false);
   const isSimulatingRef = useRef(false);
@@ -56,7 +57,7 @@ export function HomeScreen({
   useEffect(() => {
     Animated.timing(entrance, {
       toValue: 1,
-      duration: 350,
+      duration: 320,
       useNativeDriver: true,
     }).start();
   }, [entrance]);
@@ -68,25 +69,23 @@ export function HomeScreen({
   }, [prefs, isInCall, isSimulating]);
 
   const log = useCallback((message: string, category: DebugLog['category']) => {
-    setDebugLogs(prev => [
-      ...prev,
-      {message, category, timestamp: new Date()},
-    ]);
     console.log(`[sharuk] ${category} - ${message}`);
   }, []);
 
   const loadPreferences = useCallback(async () => {
     try {
-      const [loaded, nextInsights] = await Promise.all([
+      const [loadedPrefs, nextInsights, nextHistory] = await Promise.all([
         EarGuardNative.getPreferences(),
         EarGuardNative.getInsights(),
+        EarGuardNative.getCallHistory(12),
       ]);
-      setPrefs(loaded);
+      setPrefs(loadedPrefs);
       setInsights(nextInsights);
+      setCallHistory(nextHistory);
       log('Preferences loaded successfully', 'Info');
-    } catch (e) {
-      setErrorMessage(`Failed to load preferences: ${e}`);
-      log(`Failed to load preferences: ${e}`, 'Error');
+    } catch (error) {
+      setErrorMessage(`Failed to load preferences: ${error}`);
+      log(`Failed to load preferences: ${error}`, 'Error');
     } finally {
       setLoading(false);
     }
@@ -94,10 +93,14 @@ export function HomeScreen({
 
   const refreshInsights = useCallback(async () => {
     try {
-      const next = await EarGuardNative.getInsights();
-      setInsights(next);
-    } catch (e) {
-      log(`Insights error: ${e}`, 'Error');
+      const [nextInsights, nextHistory] = await Promise.all([
+        EarGuardNative.getInsights(),
+        EarGuardNative.getCallHistory(12),
+      ]);
+      setInsights(nextInsights);
+      setCallHistory(nextHistory);
+    } catch (error) {
+      log(`Insights error: ${error}`, 'Error');
     }
   }, [log]);
 
@@ -119,11 +122,11 @@ export function HomeScreen({
       const overlayGranted = await EarGuardNative.checkOverlayPermission();
 
       if (phoneGranted && overlayGranted) {
-        setStatusMessage('App is working. Ready to monitor calls.');
+        setStatusMessage('App is active and monitoring calls.');
         setErrorMessage(null);
         log('All permissions granted', 'Info');
       } else {
-        setStatusMessage('Permissions denied');
+        setStatusMessage('Permissions need attention.');
         setErrorMessage(
           'Required permissions are missing. Please grant phone, notification, and overlay permissions.',
         );
@@ -133,21 +136,20 @@ export function HomeScreen({
         if (!overlayGranted) {
           Alert.alert(
             'Permissions',
-            `Please grant phone, notification, and overlay permissions in settings.${
-              isMIUI
-                ? ' On MIUI, go to Settings > Apps > EarGuard > Other Permissions and enable "Display pop-up windows while running in the background".'
-                : ''
+            `Please grant phone, notification, and overlay permissions in settings.${isMIUI
+              ? ' On MIUI, go to Settings > Apps > EarGuard > Other Permissions and enable "Display pop-up windows while running in the background".'
+              : ''
             }`,
             [
-              {text: 'Open Settings', onPress: () => Linking.openSettings()},
-              {text: 'OK'},
+              { text: 'Open Settings', onPress: () => Linking.openSettings() },
+              { text: 'OK' },
             ],
           );
         }
       }
-    } catch (e) {
-      setErrorMessage(`Permission error: ${e}`);
-      log(`Permission error: ${e}`, 'Error');
+    } catch (error) {
+      setErrorMessage(`Permission error: ${error}`);
+      log(`Permission error: ${error}`, 'Error');
     } finally {
       setLoading(false);
     }
@@ -159,14 +161,13 @@ export function HomeScreen({
       if (!ignoring) {
         const isMIUI = await EarGuardNative.isMIUI();
         Alert.alert(
-          'Enable Background Running',
-          `Allow EarGuard to run in the background for timely reminders.${
-            isMIUI
-              ? ' On MIUI, go to Settings > Apps > EarGuard > Battery > No restrictions and enable "Display pop-up windows while running in the background".'
-              : ''
+          'Enable background running',
+          `Allow EarGuard to run in the background for timely reminders.${isMIUI
+            ? ' On MIUI, go to Settings > Apps > EarGuard > Battery > No restrictions and enable "Display pop-up windows while running in the background".'
+            : ''
           }`,
           [
-            {text: 'Later', style: 'cancel'},
+            { text: 'Later', style: 'cancel' },
             {
               text: 'Allow',
               onPress: () => EarGuardNative.requestIgnoreBatteryOptimizations(),
@@ -174,13 +175,13 @@ export function HomeScreen({
           ],
         );
       }
-    } catch (e) {
-      log(`Battery optimization error: ${e}`, 'Error');
+    } catch (error) {
+      log(`Battery optimization error: ${error}`, 'Error');
     }
   }, [log]);
 
   const showCallTrackingToast = useCallback(
-    async (caller: string) => {
+    async (currentCaller: string) => {
       try {
         let hasPermission = await EarGuardNative.checkOverlayPermission();
         if (!hasPermission) {
@@ -195,13 +196,13 @@ export function HomeScreen({
           log('Overlay permission denied, using fallback', 'Warning');
           return;
         }
-        await EarGuardNative.showOverlay(caller);
-        log(`Call tracking toast shown for ${caller}`, 'Info');
+        await EarGuardNative.showOverlay(currentCaller);
+        log(`Call tracking toast shown for ${currentCaller}`, 'Info');
         setTimeout(() => {
           EarGuardNative.hideOverlay().catch(() => undefined);
         }, 5000);
-      } catch (e) {
-        log(`Failed to show call tracking toast: ${e}`, 'Error');
+      } catch (error) {
+        log(`Failed to show call tracking toast: ${error}`, 'Error');
       }
     },
     [log],
@@ -212,7 +213,6 @@ export function HomeScreen({
       clearInterval(vibrationTimer.current);
       vibrationTimer.current = null;
     }
-    setShowReminderOverlay(false);
   }, []);
 
   const startVibration = useCallback(() => {
@@ -236,9 +236,9 @@ export function HomeScreen({
       return false;
     }
     const now = new Date();
-    const toMinutes = (v: string) => {
-      const [h, m] = v.split(':').map(Number);
-      return (Number.isFinite(h) ? h : 22) * 60 + (Number.isFinite(m) ? m : 0);
+    const toMinutes = (value: string) => {
+      const [hours, minutes] = value.split(':').map(Number);
+      return hours * 60 + minutes;
     };
     const nowMinutes = now.getHours() * 60 + now.getMinutes();
     const start = toMinutes(prefs.quietStart);
@@ -261,7 +261,6 @@ export function HomeScreen({
       );
       return;
     }
-    setShowReminderOverlay(true);
     setTimeout(() => stopVibration(), 10000);
   }, [stopVibration]);
 
@@ -277,12 +276,12 @@ export function HomeScreen({
           if (!isInCallRef.current) {
             isInCallRef.current = true;
             setIsInCall(true);
-            setStatusMessage('Call started. Timer activated.');
+            setStatusMessage('Call started. Timing reminders now.');
             setErrorMessage(null);
 
             const info = await EarGuardNative.getCallerInfo();
             setCallerInfo(info);
-            showCallTrackingToast(info);
+            showCallTrackingToast(info).catch(() => undefined);
 
             const currentPrefs = prefsRef.current;
             await EarGuardNative.startForegroundService(
@@ -297,16 +296,16 @@ export function HomeScreen({
         } else if (state === 'IDLE' && isInCallRef.current) {
           isInCallRef.current = false;
           setIsInCall(false);
-          setStatusMessage('Call ended. App is working.');
+          setStatusMessage('Call ended. Monitoring is still on.');
           await EarGuardNative.stopForegroundService();
           await EarGuardNative.recordCallCompleted();
           await refreshInsights();
           log('Foreground service stopped', 'Info');
         }
-      } catch (e) {
+      } catch (error) {
         setStatusMessage('Error monitoring calls');
-        setErrorMessage(`Call listener error: ${e}`);
-        log(`Call listener error: ${e}`, 'Error');
+        setErrorMessage(`Call listener error: ${error}`);
+        log(`Call listener error: ${error}`, 'Error');
       } finally {
         isUpdating.current = false;
       }
@@ -317,20 +316,20 @@ export function HomeScreen({
   useEffect(() => {
     loadPreferences();
     if (setupCompleted) {
-      requestPermissions();
-      checkBatteryOptimization();
+      requestPermissions().catch(() => undefined);
+      checkBatteryOptimization().catch(() => undefined);
     } else {
       setStatusMessage('Complete setup to begin active monitoring.');
     }
-  }, [loadPreferences, requestPermissions, checkBatteryOptimization, refreshToken, setupCompleted]);
+  }, [checkBatteryOptimization, loadPreferences, refreshToken, requestPermissions, setupCompleted]);
 
   useEffect(() => {
     const timer = setInterval(async () => {
       try {
         const state = await EarGuardNative.getCallState();
         await handleCallState(state);
-      } catch (e) {
-        log(`Call listener error: ${e}`, 'Error');
+      } catch (error) {
+        log(`Call listener error: ${error}`, 'Error');
       }
     }, 10000);
     return () => clearInterval(timer);
@@ -344,7 +343,7 @@ export function HomeScreen({
       isInCallRef.current = false;
       setIsSimulating(false);
       setIsInCall(false);
-      setStatusMessage('Simulation stopped. App is working.');
+      setStatusMessage('Simulation stopped. Monitoring is still on.');
       stopVibration();
       EarGuardNative.recordCallCompleted()
         .then(() => refreshInsights())
@@ -357,41 +356,37 @@ export function HomeScreen({
     setIsSimulating(true);
     setIsInCall(true);
     setCallerInfo('Simulated Caller');
-    setStatusMessage('Simulating call... Timer started.');
-    showCallTrackingToast('Simulated Caller');
+    setStatusMessage('Simulating a call. Timing reminders now.');
+    showCallTrackingToast('Simulated Caller').catch(() => undefined);
     if (isWithinQuietHours()) {
-      setStatusMessage('Quiet hours active. Gentle reminder mode.');
+      setStatusMessage('Quiet hours are active. Reminder mode is gentle.');
     }
-    displayReminderOverlay();
+    displayReminderOverlay().catch(() => undefined);
     if (!isWithinQuietHours()) {
       startVibration();
     }
     log('Simulation started', 'Info');
   };
 
-  const readyActive =
-    !errorMessage &&
-    (statusMessage.includes('Ready') ||
-      statusMessage.includes('App is working') ||
-      statusMessage.includes('Call ended'));
-  const callActive =
-    isInCall ||
-    isSimulating ||
-    statusMessage.includes('Simulating') ||
-    statusMessage.includes('Call started');
-  const warnActive =
-    Boolean(errorMessage) ||
-    statusMessage.includes('denied') ||
-    statusMessage.includes('Error') ||
-    statusMessage.includes('Complete setup');
-  const quietActive = prefs.quietHoursEnabled && isWithinQuietHours();
+  const statusDescription = errorMessage
+    ? errorMessage
+    : isSimulating
+      ? `Simulated caller: ${callerInfo}`
+      : isInCall
+        ? `Tracking ${callerInfo}`
+        : statusMessage;
 
-  const statusChips: Array<{variant: StatusChipVariant; active: boolean}> = [
-    {variant: 'ready', active: readyActive && !callActive},
-    {variant: 'call', active: callActive},
-    {variant: 'quiet', active: quietActive},
-    {variant: 'warn', active: warnActive && !callActive},
-  ];
+  const liveState = errorMessage
+    ? 'Attention needed'
+    : isSimulating || isInCall
+      ? 'Monitoring active'
+      : setupCompleted
+        ? 'Ready to monitor'
+        : 'Setup incomplete';
+
+  const topLongest = [...callHistory]
+    .sort((left, right) => right.durationSeconds - left.durationSeconds)
+    .slice(0, 3);
 
   if (loading) {
     return (
@@ -402,247 +397,345 @@ export function HomeScreen({
   }
 
   return (
-    <SafeAreaView style={sharedStyles.screen} edges={['left', 'right', 'bottom']}>
+    <SafeAreaView style={sharedStyles.screen} edges={['top', 'left', 'right', 'bottom']}>
       <MagicBackground />
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView contentContainerStyle={styles.page} showsVerticalScrollIndicator={false}>
         <Animated.View
           style={[
-            styles.animatedCardWrap,
+            styles.hero,
             {
               opacity: entrance,
               transform: [
                 {
                   translateY: entrance.interpolate({
                     inputRange: [0, 1],
-                    outputRange: [14, 0],
+                    outputRange: [16, 0],
                   }),
                 },
               ],
             },
           ]}>
-          <Text style={styles.appTitle}>EarGuard</Text>
-          <Text style={styles.subtitle}>Healthy call habits, minimal friction.</Text>
-
-          <View style={styles.statusChipRow}>
-            {statusChips.map(chip => (
-              <StatusChip
-                key={chip.variant}
-                variant={chip.variant}
-                active={chip.active}
-                size={chip.active ? 56 : 44}
-                style={chip.active ? styles.statusChipPrimary : styles.statusChipSecondary}
-              />
-            ))}
-          </View>
-
-          <Text style={styles.status}>{statusMessage}</Text>
-          {errorMessage ? <Text style={styles.error}>{errorMessage}</Text> : null}
-
-          <Text style={styles.meta}>Interval: {Math.round(prefs.interval)} minutes</Text>
-          <Text style={styles.meta}>Ringtone: {soundLabelForFile(prefs.sound)}</Text>
-          <Text style={styles.meta}>
-            Quiet Hours: {prefs.quietHoursEnabled ? `${prefs.quietStart} - ${prefs.quietEnd}` : 'Off'}
-          </Text>
-
-          <View style={styles.insightsCard}>
-            <Text style={styles.cardTitle}>Weekly Summary</Text>
-            <Text style={styles.cardMeta}>
-              Calls: {insights?.totalCalls ?? 0} • This week: {insights?.weekTotal ?? 0}
-            </Text>
-            <Text style={styles.cardMeta}>Current streak: {insights?.currentStreak ?? 0} days</Text>
-            <View style={styles.weekRow}>
-              {(insights?.weekSeries ?? []).map(point => (
-                <View key={point.date} style={styles.weekCol}>
-                  <View
-                    style={[
-                      styles.weekBar,
-                      point.count > 0 ? styles.weekBarActive : styles.weekBarMuted,
-                      {
-                        height: Math.max(8, Math.min(56, point.count * 14)),
-                      },
-                    ]}
-                  />
-                  <Text style={styles.weekText}>{point.date.slice(8)}</Text>
-                </View>
-              ))}
+          <View style={styles.heroTop}>
+            <View style={styles.heroMarkStack}>
+              <View style={styles.heroMarkOrbA} />
+              <View style={styles.heroMarkOrbB} />
+              <AppMark source={require('../../assets/icons/app-icon.png')} size={60} />
+            </View>
+            <View style={styles.heroCopy}>
+              <Text style={styles.eyebrow}>Call guidance</Text>
+              <Text style={styles.appTitle}>EarGuard</Text>
+              <Text style={styles.heroMiniText}>
+                {insights?.weekTotal ?? 0} this week · {insights?.currentStreak ?? 0} day streak
+              </Text>
+            </View>
+            <View style={styles.heroActions}>
+              <Pressable onPress={onOpenSettings} style={styles.heroActionButton}>
+                <LineIcon name="settings" size={15} color={COLORS.text} />
+              </Pressable>
+              <Pressable onPress={() => onOpenAbout(prefs.interval, prefs.sound)} style={styles.heroActionButton}>
+                <LineIcon name="info" size={15} color={COLORS.text} />
+              </Pressable>
             </View>
           </View>
 
-          <View style={styles.insightsCard}>
-            <Text style={styles.cardTitle}>Achievements</Text>
-            <Text style={styles.achievement}>
-              {insights?.firstTenUnlocked ? 'Unlocked' : 'Locked'} • First 10 calls
-            </Text>
-            <Text style={styles.achievement}>
-              {insights?.sevenDayUnlocked ? 'Unlocked' : 'Locked'} • 7-day streak
-            </Text>
-          </View>
-
-          <TouchableOpacity style={[sharedStyles.primaryButton, styles.gap]} onPress={toggleSimulation}>
-            <Text style={sharedStyles.buttonTextLight}>
-              {isSimulating ? 'Stop Simulation' : 'Simulate Call'}
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={[sharedStyles.secondaryButton, styles.gap]} onPress={onOpenSettings}>
-            <Text style={sharedStyles.buttonTextDark}>Settings</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[sharedStyles.secondaryButton, styles.gap]}
-            onPress={() => onOpenAbout(prefs.interval, prefs.sound)}>
-            <Text style={sharedStyles.buttonTextDark}>About EarGuard</Text>
-          </TouchableOpacity>
-        </Animated.View>
-      </ScrollView>
-
-      <TouchableOpacity style={styles.fab} onPress={() => setDebugVisible(true)}>
-        <Text style={styles.fabText}>LOG</Text>
-      </TouchableOpacity>
-
-      <Modal visible={debugVisible} animationType="slide">
-        <View style={styles.debugModal}>
-          <Text style={styles.debugTitle}>Debug Logs</Text>
-          <FlatList
-            data={[...debugLogs].reverse()}
-            keyExtractor={(_, index) => String(index)}
-            renderItem={({item}) => (
-              <View style={styles.debugRow}>
-                <Text style={styles.debugCategory}>{item.category}</Text>
-                <Text style={styles.debugMessage}>{item.message}</Text>
-                <Text style={styles.debugTime}>{item.timestamp.toLocaleString()}</Text>
+          <View style={styles.statusCard}>
+            <View style={styles.statusCardHead}>
+              <View>
+                <Text style={styles.statusTitle}>{liveState}</Text>
+                <Text style={styles.statusMessage}>{statusDescription}</Text>
               </View>
-            )}
-          />
-          <TouchableOpacity style={styles.confirm} onPress={() => setDebugVisible(false)}>
-            <Text style={sharedStyles.buttonTextLight}>Close</Text>
-          </TouchableOpacity>
-        </View>
-      </Modal>
-
-      <Modal visible={showReminderOverlay} transparent animationType="fade">
-        <TouchableOpacity
-          style={styles.reminderBackdrop}
-          activeOpacity={1}
-          onPress={stopVibration}>
-          <View style={styles.reminderCard}>
-            <Text style={styles.reminderTitle}>EarGuard Reminder</Text>
-            <Text style={styles.reminderBody}>Time to switch ears!</Text>
-            <TouchableOpacity style={styles.confirm} onPress={stopVibration}>
-              <Text style={sharedStyles.buttonTextLight}>Acknowledge</Text>
-            </TouchableOpacity>
+              <IconBadge
+                name={errorMessage ? 'warning' : isSimulating || isInCall ? 'phone' : 'spark'}
+                tone={errorMessage ? 'danger' : isSimulating || isInCall ? 'primary' : 'success'}
+                size={42}
+              />
+            </View>
+            <Text style={styles.statusMetaText}>
+              {Math.round(prefs.interval)} min · {soundLabelForFile(prefs.sound)}
+            </Text>
           </View>
-        </TouchableOpacity>
-      </Modal>
+        </Animated.View>
+
+        <SurfaceCard>
+          <SectionHeader eyebrow="This week" title="Calls at a glance" />
+          <View style={styles.metricsRow}>
+            <TinyMetric icon="chart" value={`${insights?.weekTotal ?? 0}`} label="Calls" />
+            <TinyMetric icon="timer" value={`${insights?.dailyPoints ?? 0}`} label="Points" />
+            <TinyMetric icon="spark" value={`${insights?.currentStreak ?? 0}`} label="Streak" />
+          </View>
+          <View style={styles.longestList}>
+            {topLongest.length > 0 ? (
+              topLongest.map(item => (
+                <View key={item.id} style={styles.longestRow}>
+                  <Text style={styles.longestLabel} numberOfLines={1}>
+                    {item.name}
+                  </Text>
+                  <Text style={styles.longestValue}>{formatDuration(item.durationSeconds)}</Text>
+                </View>
+              ))
+            ) : (
+              <Text style={styles.emptyState}>No call history yet.</Text>
+            )}
+          </View>
+          <Pressable
+            onPress={onOpenCalls}
+            style={({pressed}) => [styles.seeMoreButton, pressed && styles.seeMorePressed]}>
+            <Text style={styles.seeMoreText}>See more calls</Text>
+            <LineIcon name="chart" size={14} color={COLORS.textSoft} />
+          </Pressable>
+        </SurfaceCard>
+
+        <SurfaceCard>
+          <SectionHeader eyebrow="Action" title="Quick test" />
+          <View style={styles.actions}>
+            <ActionButton
+              title={isSimulating ? 'Stop simulation' : 'Simulate a call'}
+              icon="play"
+              tone="primary"
+              variant="primary"
+              onPress={toggleSimulation}
+            />
+          </View>
+        </SurfaceCard>
+      </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  center: {justifyContent: 'center', alignItems: 'center'},
-  content: {
-    paddingTop: 56,
-    paddingHorizontal: 20,
-    paddingBottom: 100,
+  center: {
+    justifyContent: 'center',
     alignItems: 'center',
   },
-  animatedCardWrap: {
-    width: '100%',
+  page: {
+    padding: 20,
+    paddingBottom: 36,
+    gap: 16,
   },
-  appTitle: {fontSize: 30, fontWeight: '800', color: COLORS.text, marginBottom: 6},
-  subtitle: {fontSize: 14, color: COLORS.muted, marginBottom: 24},
+  hero: {
+    gap: 6,
+  },
+  heroTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  heroActions: {
+    flexDirection: 'row',
+    gap: 8,
+    alignItems: 'center',
+  },
+  heroActionButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,253,248,0.8)',
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: 'rgba(65,60,54,0.18)',
+  },
+  heroCopy: {
+    flex: 1,
+  },
+  eyebrow: {
+    color: COLORS.accent,
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 1.1,
+    textTransform: 'uppercase',
+    marginBottom: 4,
+  },
+  appTitle: {
+    color: COLORS.text,
+    fontSize: 24,
+    fontWeight: '900',
+    letterSpacing: -0.7,
+  },
+  heroMiniText: {
+    marginTop: 3,
+    color: COLORS.textSoft,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  subtitle: {
+    marginTop: 5,
+    color: COLORS.textSoft,
+    fontSize: 14,
+    lineHeight: 20,
+  },
   statusChipRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 12,
-    marginBottom: 16,
-    minHeight: 60,
+    flexWrap: 'wrap',
+    gap: 10,
   },
   statusChipPrimary: {
-    shadowColor: COLORS.primary,
-    shadowOpacity: 0.18,
-    shadowRadius: 8,
-    shadowOffset: {width: 0, height: 4},
-    elevation: 4,
+    shadowOpacity: 0.08,
   },
-  statusChipSecondary: {},
-  status: {fontSize: 18, color: COLORS.text, textAlign: 'center'},
-  error: {fontSize: 14, color: COLORS.error, textAlign: 'center', marginTop: 8},
-  meta: {
+  statusChipSecondary: {
+    opacity: 0.82,
+  },
+  statusCard: {
+    backgroundColor: 'rgba(255,253,248,0.96)',
+    borderRadius: 22,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: 'rgba(65,60,54,0.18)',
+    padding: 18,
+    shadowColor: COLORS.shadowDark,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 14,
+    elevation: 2,
+    transform: [{ rotate: '-0.18deg' }],
+  },
+  statusCardHead: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  statusTitle: {
+    color: COLORS.text,
+    fontSize: 18,
+    fontWeight: '900',
+    letterSpacing: -0.2,
+  },
+  statusMessage: {
+    marginTop: 6,
+    color: COLORS.textSoft,
     fontSize: 14,
-    color: COLORS.muted,
-    marginTop: 8,
+    lineHeight: 20,
   },
-  insightsCard: {
-    marginTop: 16,
-    backgroundColor: COLORS.white,
+  statusMetaText: {
+    marginTop: 14,
+    color: COLORS.textSoft,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  heroMarkStack: {
+    width: 80,
+    height: 80,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  heroMarkOrbA: {
+    position: 'absolute',
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    backgroundColor: 'rgba(37,99,235,0.16)',
+  },
+  heroMarkOrbB: {
+    position: 'absolute',
+    width: 66,
+    height: 66,
+    borderRadius: 33,
+    backgroundColor: 'rgba(15,118,110,0.14)',
+    transform: [{ translateX: 14 }, { translateY: 6 }],
+  },
+  metricsRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  tinyMetric: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 8,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#E1E8FF',
-    padding: 14,
+    borderStyle: 'dashed',
+    borderColor: COLORS.border,
+    backgroundColor: 'rgba(255,253,248,0.76)',
   },
-  cardTitle: {fontSize: 16, fontWeight: '700', color: COLORS.text},
-  cardMeta: {fontSize: 13, color: COLORS.muted, marginTop: 6},
-  weekRow: {
-    marginTop: 12,
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    justifyContent: 'space-between',
-    gap: 4,
-  },
-  weekCol: {alignItems: 'center', flex: 1},
-  weekBar: {width: 12, borderRadius: 6},
-  weekBarActive: {backgroundColor: COLORS.primary},
-  weekBarMuted: {backgroundColor: '#D9E3FF'},
-  weekText: {fontSize: 10, color: COLORS.muted, marginTop: 4},
-  achievement: {marginTop: 8, color: COLORS.text, fontWeight: '600'},
-  gap: {marginTop: 16, width: '100%'},
-  fab: {
-    position: 'absolute',
-    right: 20,
-    bottom: 24,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: COLORS.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-    elevation: 8,
-  },
-  fabText: {fontSize: 12, color: COLORS.white, fontWeight: '800'},
-  debugModal: {flex: 1, backgroundColor: COLORS.background, padding: 20, paddingTop: 48},
-  debugTitle: {fontSize: 20, fontWeight: '700', marginBottom: 12, color: COLORS.text},
-  debugRow: {
-    backgroundColor: COLORS.white,
-    borderRadius: 8,
-    padding: 10,
-    marginBottom: 8,
-  },
-  debugCategory: {fontWeight: '700', color: COLORS.primary},
-  debugMessage: {color: COLORS.text},
-  debugTime: {fontSize: 12, color: '#9E9E9E'},
-  reminderBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    padding: 20,
-  },
-  reminderCard: {
-    backgroundColor: COLORS.white,
-    borderRadius: 16,
-    padding: 20,
-    alignItems: 'center',
-  },
-  reminderTitle: {fontSize: 20, fontWeight: '700', color: COLORS.text},
-  reminderBody: {fontSize: 16, color: COLORS.text, marginVertical: 12},
-  confirm: {
+  tinyMetricValue: {
     marginTop: 8,
-    backgroundColor: COLORS.primary,
-    borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 24,
+    color: COLORS.text,
+    fontSize: 16,
+    fontWeight: '900',
+  },
+  tinyMetricLabel: {
+    marginTop: 2,
+    color: COLORS.textSoft,
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  longestList: {
+    gap: 8,
+    marginTop: 12,
+  },
+  longestRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(207,199,184,0.55)',
+    borderStyle: 'dashed',
+  },
+  longestLabel: {
+    flex: 1,
+    color: COLORS.text,
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  longestValue: {
+    color: COLORS.textSoft,
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  emptyState: {
+    color: COLORS.textSoft,
+    fontSize: 13,
+    paddingVertical: 4,
+  },
+  seeMoreButton: {
+    marginTop: 8,
+    flexDirection: 'row',
     alignItems: 'center',
-    width: '100%',
+    justifyContent: 'space-between',
+    paddingTop: 8,
+  },
+  seeMorePressed: {
+    opacity: 0.82,
+  },
+  seeMoreText: {
+    color: COLORS.textSoft,
+    fontSize: 12,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+  },
+  actions: {
+    gap: 12,
   },
 });
+
+function TinyMetric({
+  icon,
+  value,
+  label,
+}: {
+  icon: 'chart' | 'timer' | 'spark';
+  value: string;
+  label: string;
+}) {
+  return (
+    <View style={styles.tinyMetric}>
+      <IconBadge name={icon} tone="muted" size={24} />
+      <Text style={styles.tinyMetricValue}>{value}</Text>
+      <Text style={styles.tinyMetricLabel}>{label}</Text>
+    </View>
+  );
+}
+
+function formatDuration(totalSeconds: number) {
+  const minutes = Math.max(0, Math.floor(totalSeconds / 60));
+  const seconds = Math.max(0, totalSeconds % 60);
+  if (minutes <= 0) {
+    return `${seconds}s`;
+  }
+  return `${minutes}m ${String(seconds).padStart(2, '0')}s`;
+}

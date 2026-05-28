@@ -1,23 +1,30 @@
-import React, {useState} from 'react';
+import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {
+  Alert,
+  AppState,
   PermissionsAndroid,
   Platform,
+  Pressable,
+  ScrollView,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {COLORS} from '../constants';
 import {MagicBackground} from '../components/MagicBackground';
+import {IconBadge, SurfaceCard} from '../components/Ui';
 import {EarGuardNative} from '../native/earguard';
 import {sharedStyles} from '../styles';
+import type {LineIconName} from '../components/LineIcon';
 
 type PermissionStep = {
-  id: 'phone' | 'notification' | 'overlay' | 'battery';
-  icon: string;
+  id: 'phone' | 'alerts' | 'battery';
+  icon: LineIconName;
+  tone: 'primary' | 'accent' | 'warning' | 'muted';
   title: string;
   description: string;
+  detail: string;
   skipable: boolean;
 };
 
@@ -28,30 +35,29 @@ type Props = {
 const STEPS: PermissionStep[] = [
   {
     id: 'phone',
-    icon: '☎️',
-    title: 'Phone Access',
-    description: 'Monitor calls to know when to remind you',
+    icon: 'phone',
+    tone: 'primary',
+    title: 'Phone access',
+    description: 'Detect active calls so reminders appear at the right moment.',
+    detail: 'EarGuard reads call state only while it is running.',
     skipable: true,
   },
   {
-    id: 'notification',
-    icon: '🔔',
-    title: 'Notifications',
-    description: 'Send reminders to switch ears',
-    skipable: false, // Required
-  },
-  {
-    id: 'overlay',
-    icon: '👁️',
-    title: 'Overlay Permission',
-    description: 'Show reminders on top of other apps',
-    skipable: true,
+    id: 'alerts',
+    icon: 'bell',
+    tone: 'accent',
+    title: 'Notifications and overlay',
+    description: 'Enable reminders and compact call prompts in one step.',
+    detail: 'This keeps the reminder system visible and reliable during calls.',
+    skipable: false,
   },
   {
     id: 'battery',
-    icon: '⚡',
-    title: 'Battery Optimization',
-    description: 'Keep running in background',
+    icon: 'shield',
+    tone: 'muted',
+    title: 'Battery optimization',
+    description: 'Let the app run in the background without being paused too aggressively.',
+    detail: 'Recommended for timely reminders and call monitoring.',
     skipable: true,
   },
 ];
@@ -63,32 +69,86 @@ export function EnhancedOnboardingScreen({onFinish}: Props) {
   const step = STEPS[currentStep];
   const isDone = completed.has(step.id);
   const isLastStep = currentStep === STEPS.length - 1;
+  const progress = useMemo(
+    () => `${currentStep + 1} of ${STEPS.length}`,
+    [currentStep],
+  );
+
+  const finishOnboarding = useCallback(async () => {
+    await EarGuardNative.setOnboardingCompleted(true);
+    onFinish();
+  }, [onFinish]);
+
+  const moveNext = useCallback(() => {
+    if (isLastStep) {
+      finishOnboarding().catch(() => undefined);
+      return;
+    }
+    setCurrentStep(index => index + 1);
+  }, [finishOnboarding, isLastStep]);
+
+  const refreshCurrentStep = useCallback(async () => {
+    let granted = false;
+
+    if (step.id === 'phone') {
+      granted =
+        Platform.OS !== 'android'
+          ? true
+          : await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.READ_PHONE_STATE);
+    }
+
+    if (step.id === 'alerts') {
+      const notificationGranted =
+        Platform.OS !== 'android'
+          ? true
+          : await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS);
+      const overlayGranted = await EarGuardNative.checkOverlayPermission();
+      granted = notificationGranted && overlayGranted;
+    }
+
+    if (step.id === 'battery') {
+      granted = await EarGuardNative.isIgnoringBatteryOptimizations();
+    }
+
+    if (granted && !isDone) {
+      setCompleted(previous => {
+        const next = new Set(previous);
+        next.add(step.id);
+        return next;
+      });
+      moveNext();
+    }
+  }, [isDone, moveNext, step.id]);
 
   const handleRequest = async () => {
     let granted = false;
 
     if (step.id === 'phone') {
       if (Platform.OS === 'android') {
-        const result = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.READ_PHONE_STATE);
+        const result = await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.READ_PHONE_STATE,
+        );
         granted = result === PermissionsAndroid.RESULTS.GRANTED;
       } else {
         granted = true;
       }
     }
 
-    if (step.id === 'notification') {
+    if (step.id === 'alerts') {
       if (Platform.OS === 'android') {
         const permission = PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS;
         const result = await PermissionsAndroid.request(permission);
-        granted = result === PermissionsAndroid.RESULTS.GRANTED;
+        const notificationGranted = result === PermissionsAndroid.RESULTS.GRANTED;
+        if (!notificationGranted) {
+          granted = false;
+        } else {
+          await EarGuardNative.requestOverlayPermission();
+          const overlayGranted = await EarGuardNative.checkOverlayPermission();
+          granted = overlayGranted;
+        }
       } else {
         granted = true;
       }
-    }
-
-    if (step.id === 'overlay') {
-      await EarGuardNative.requestOverlayPermission();
-      granted = await EarGuardNative.checkOverlayPermission();
     }
 
     if (step.id === 'battery') {
@@ -97,196 +157,214 @@ export function EnhancedOnboardingScreen({onFinish}: Props) {
     }
 
     if (granted) {
-      const newCompleted = new Set(completed);
-      newCompleted.add(step.id);
-      setCompleted(newCompleted);
+      setCompleted(previous => {
+        const next = new Set(previous);
+        next.add(step.id);
+        return next;
+      });
       moveNext();
+      return;
+    }
+
+    if (step.id === 'alerts') {
+      Alert.alert('Permission needed', 'Notifications are required to complete setup.');
     }
   };
 
-  const handleSkip = () => {
-    moveNext();
-  };
+  const canSkip = step.skipable && !(step.id === 'alerts' && !isDone);
 
-  const moveNext = () => {
-    if (isLastStep) {
-      finishOnboarding();
-    } else {
-      setCurrentStep(currentStep + 1);
-    }
-  };
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', state => {
+      if (state === 'active') {
+        refreshCurrentStep().catch(() => undefined);
+      }
+    });
 
-  const finishOnboarding = async () => {
-    await EarGuardNative.setOnboardingCompleted(true);
-    onFinish();
-  };
-
-  const notificationRequiredButMissing = step.id === 'notification' && !isDone;
-  const canSkip = step.skipable && !notificationRequiredButMissing;
+    return () => subscription.remove();
+  }, [refreshCurrentStep]);
 
   return (
-    <SafeAreaView style={sharedStyles.screen} edges={['left', 'right', 'bottom']}>
+    <SafeAreaView style={sharedStyles.screen} edges={['top', 'left', 'right', 'bottom']}>
       <MagicBackground />
-      <View style={styles.container}>
-        {/* Step counter */}
-        <Text style={styles.stepCounter}>
-          {currentStep + 1} / {STEPS.length}
-        </Text>
-
-        {/* Progress bar */}
-        <View style={styles.progressBar}>
-          <View
-            style={[
-              styles.progressFill,
-              {width: `${((currentStep + 1) / STEPS.length) * 100}%`},
-            ]}
-          />
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <View style={styles.topBar}>
+          <View>
+            <Text style={styles.stepLabel}>Setup</Text>
+            <Text style={styles.progressText}>{progress}</Text>
+          </View>
+          <View style={styles.progressTrack}>
+            <View style={[styles.progressFill, {width: `${((currentStep + 1) / STEPS.length) * 100}%`}]} />
+          </View>
         </View>
 
-        {/* Large icon */}
-        <View style={styles.spacer} />
-        <Text style={styles.largeIcon}>{step.icon}</Text>
+        <SurfaceCard style={styles.heroCard}>
+          <View style={styles.heroHeader}>
+            <IconBadge name={step.icon} tone={step.tone} size={48} />
+            <View style={styles.heroCopy}>
+              <Text style={styles.heroEyebrow}>Why we ask</Text>
+              <Text style={styles.heroTitle}>{step.title}</Text>
+              <Text style={styles.heroDetail}>{step.detail}</Text>
+            </View>
+          </View>
 
-        {/* Title */}
-        <Text style={styles.title}>{step.title}</Text>
+          <Text style={styles.heroBody}>{step.description}</Text>
 
-        {/* Description */}
-        <Text style={styles.description}>{step.description}</Text>
+          <View style={styles.helperCard}>
+            <Text style={styles.helperLabel}>What this changes</Text>
+            <Text style={styles.helperText}>
+              The app stays quiet until a call is active, then it surfaces a lightweight reminder.
+            </Text>
+          </View>
+        </SurfaceCard>
 
-        {/* Buttons */}
-        <View style={styles.buttonContainer}>
+        <View style={styles.actionGroup}>
           {!isDone ? (
             <>
-              <TouchableOpacity
-                style={styles.primaryButton}
-                onPress={handleRequest}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.primaryButtonText}>Allow</Text>
-              </TouchableOpacity>
+              <Pressable onPress={handleRequest} style={({pressed}) => [sharedStyles.primaryButton, pressed && styles.pressed]}>
+                <Text style={sharedStyles.buttonTextLight}>Allow access</Text>
+              </Pressable>
 
-              {canSkip && (
-                <TouchableOpacity
-                  style={styles.secondaryButton}
-                  onPress={handleSkip}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.secondaryButtonText}>Skip</Text>
-                </TouchableOpacity>
-              )}
-
-              {!step.skipable && !isDone && (
-                <Text style={styles.requiredText}>Required to continue</Text>
+              {canSkip ? (
+                <Pressable
+                  onPress={moveNext}
+                  style={({pressed}) => [sharedStyles.secondaryButton, pressed && styles.pressed]}>
+                  <Text style={sharedStyles.buttonTextDark}>Skip for now</Text>
+                </Pressable>
+              ) : (
+                <Text style={styles.requiredText}>This step is required to continue.</Text>
               )}
             </>
           ) : (
             <>
-              <Text style={styles.grantedText}>✓ Granted</Text>
-              <TouchableOpacity
-                style={styles.primaryButton}
-                onPress={moveNext}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.primaryButtonText}>
-                  {isLastStep ? 'Finish' : 'Next'}
+              <View style={styles.grantedRow}>
+                <IconBadge name="check" tone="success" size={28} />
+                <Text style={styles.grantedText}>Granted</Text>
+              </View>
+              <Pressable onPress={moveNext} style={({pressed}) => [sharedStyles.primaryButton, pressed && styles.pressed]}>
+                <Text style={sharedStyles.buttonTextLight}>
+                  {isLastStep ? 'Finish setup' : 'Continue'}
                 </Text>
-              </TouchableOpacity>
+              </Pressable>
             </>
           )}
         </View>
-      </View>
+
+      </ScrollView>
     </SafeAreaView>
   );
 }
 
-
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 24,
-    justifyContent: 'space-between',
-    paddingTop: 60,
+  content: {
+    padding: 20,
+    paddingBottom: 36,
+    gap: 16,
   },
-  stepCounter: {
-    fontSize: 13,
-    color: COLORS.muted,
-    fontWeight: '600',
-    marginBottom: 12,
+  topBar: {
+    gap: 10,
   },
-  progressBar: {
-    height: 4,
-    backgroundColor: COLORS.backgroundDeep,
-    borderRadius: 2,
+  stepLabel: {
+    color: COLORS.accent,
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+  },
+  progressText: {
+    color: COLORS.text,
+    fontSize: 24,
+    fontWeight: '900',
+    letterSpacing: -0.4,
+    marginTop: 4,
+  },
+  progressTrack: {
+    height: 5,
+    borderRadius: 999,
+    backgroundColor: 'rgba(148,163,184,0.18)',
     overflow: 'hidden',
-    marginBottom: 32,
   },
   progressFill: {
     height: '100%',
+    borderRadius: 999,
     backgroundColor: COLORS.primary,
-    borderRadius: 2,
   },
-  spacer: {
+  heroCard: {
+    gap: 16,
+  },
+  heroHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 14,
+  },
+  heroCopy: {
     flex: 1,
   },
-  largeIcon: {
-    fontSize: 80,
-    textAlign: 'center',
-    marginBottom: 32,
+  heroEyebrow: {
+    color: COLORS.accent,
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 1.1,
+    textTransform: 'uppercase',
+    marginBottom: 6,
   },
-  title: {
-    fontSize: 28,
-    fontWeight: '700',
+  heroTitle: {
     color: COLORS.text,
-    textAlign: 'center',
-    marginBottom: 12,
+    fontSize: 24,
+    fontWeight: '900',
+    letterSpacing: -0.4,
   },
-  description: {
+  heroDetail: {
+    marginTop: 6,
+    color: COLORS.textSoft,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  heroBody: {
+    color: COLORS.text,
     fontSize: 15,
-    color: COLORS.muted,
-    textAlign: 'center',
     lineHeight: 22,
-    marginBottom: 48,
   },
-  buttonContainer: {
+  helperCard: {
+    backgroundColor: COLORS.surfaceMuted,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    padding: 14,
+  },
+  helperLabel: {
+    color: COLORS.text,
+    fontSize: 13,
+    fontWeight: '800',
+    marginBottom: 6,
+  },
+  helperText: {
+    color: COLORS.textSoft,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  actionGroup: {
     gap: 12,
   },
-  primaryButton: {
-    backgroundColor: COLORS.primary,
-    borderRadius: 12,
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-    alignItems: 'center',
-  },
-  primaryButtonText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: COLORS.white,
-  },
-  secondaryButton: {
-    borderRadius: 12,
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-    alignItems: 'center',
-    borderWidth: 1.5,
-    borderColor: COLORS.muted,
-  },
-  secondaryButtonText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: COLORS.muted,
-  },
-  grantedText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: COLORS.success,
-    textAlign: 'center',
-    marginBottom: 8,
+  pressed: {
+    transform: [{scale: 0.985}],
   },
   requiredText: {
+    color: COLORS.warm,
     fontSize: 12,
-    color: COLORS.error,
+    fontWeight: '700',
     textAlign: 'center',
-    marginTop: 8,
-    fontWeight: '500',
+    marginTop: 2,
+  },
+  grantedRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginBottom: 2,
+  },
+  grantedText: {
+    color: COLORS.success,
+    fontSize: 14,
+    fontWeight: '800',
   },
 });

@@ -1,174 +1,184 @@
 import React, {useEffect, useRef} from 'react';
-import {
-  Animated,
-  Easing,
-  StyleSheet,
-  Text,
-  View,
-  Dimensions,
-  Image,
-} from 'react-native';
+import {Animated, Easing, Image, StyleSheet, Text, View} from 'react-native';
 import {COLORS} from '../constants';
 import {MagicBackground} from '../components/MagicBackground';
-
-const {width, height} = Dimensions.get('window');
+import {LineIcon} from '../components/LineIcon';
 
 type Props = {
   onComplete: () => void;
   duration?: number;
 };
 
-export function SplashScreen({onComplete, duration = 3500}: Props) {
-  const iconScale = useRef(new Animated.Value(0)).current;
+export function SplashScreen({onComplete, duration = 2600}: Props) {
+  const iconScale = useRef(new Animated.Value(0.72)).current;
   const iconOpacity = useRef(new Animated.Value(0)).current;
-  const shadowOpacity = useRef(new Animated.Value(0)).current;
-  const textOpacity = useRef(new Animated.Value(0)).current;
-  const cursorOpacity = useRef(new Animated.Value(0)).current;
-  const containerScale = useRef(new Animated.Value(1)).current;
-
-  const displayedText = useRef('').current;
-  const [displayedChars, setDisplayedChars] = React.useState('');
-  const textIntervalRef = useRef<NodeJS.Timeout | null>(null);
-
-  const fullText = 'EarGuard';
-  const charsPerSecond = fullText.length / 0.8; // Spread out over 0.8s
+  const contentOpacity = useRef(new Animated.Value(0)).current;
+  const contentY = useRef(new Animated.Value(14)).current;
+  const pulse = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    // Icon bounce-in animation (0-600ms)
-    Animated.sequence([
-      Animated.parallel([
-        Animated.timing(iconScale, {
-          toValue: 1,
-          duration: 600,
-          easing: Easing.out(Easing.back(1.4)),
-          useNativeDriver: true,
-        }),
-        Animated.timing(iconOpacity, {
-          toValue: 1,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-      ]),
-      // Shadow fade-in (600-1000ms)
-      Animated.timing(shadowOpacity, {
+    const entrance = Animated.parallel([
+      Animated.spring(iconScale, {
         toValue: 1,
-        duration: 400,
+        useNativeDriver: true,
+        speed: 11,
+        bounciness: 8,
+      }),
+      Animated.timing(iconOpacity, {
+        toValue: 1,
+        duration: 360,
         useNativeDriver: true,
       }),
-      // Text fade-in (1000-1200ms)
-      Animated.timing(textOpacity, {
-        toValue: 1,
-        duration: 200,
-        useNativeDriver: true,
-      }),
-    ]).start();
-
-    // Start typing effect (1200ms)
-    setTimeout(() => {
-      let charIndex = 0;
-      textIntervalRef.current = setInterval(() => {
-        if (charIndex < fullText.length) {
-          setDisplayedChars(fullText.slice(0, charIndex + 1));
-          charIndex++;
-        } else {
-          if (textIntervalRef.current) {
-            clearInterval(textIntervalRef.current);
-          }
-          // Start cursor blink after typing completes
-          Animated.loop(
-            Animated.sequence([
-              Animated.timing(cursorOpacity, {
-                toValue: 1,
-                duration: 500,
-                useNativeDriver: true,
-              }),
-              Animated.timing(cursorOpacity, {
-                toValue: 0.3,
-                duration: 500,
-                useNativeDriver: true,
-              }),
-            ]),
-          ).start();
-        }
-      }, 1000 / charsPerSecond);
-    }, 1200);
-
-    // End splash screen and trigger exit animation
-    const timer = setTimeout(() => {
       Animated.sequence([
-        Animated.timing(containerScale, {
-          toValue: 0.9,
-          duration: 200,
-          easing: Easing.in(Easing.ease),
-          useNativeDriver: true,
-        }),
+        Animated.delay(180),
         Animated.parallel([
-          Animated.timing(iconOpacity, {
-            toValue: 0,
-            duration: 200,
+          Animated.timing(contentOpacity, {
+            toValue: 1,
+            duration: 280,
             useNativeDriver: true,
           }),
-          Animated.timing(textOpacity, {
+          Animated.timing(contentY, {
             toValue: 0,
-            duration: 200,
+            duration: 280,
+            easing: Easing.out(Easing.cubic),
             useNativeDriver: true,
           }),
         ]),
-      ]).start(() => {
-        onComplete();
-      });
+      ]),
+    ]);
+
+    entrance.start();
+
+    const pulseLoop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, {
+          toValue: 1,
+          duration: 900,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulse, {
+          toValue: 0,
+          duration: 900,
+          useNativeDriver: true,
+        }),
+      ]),
+    );
+    pulseLoop.start();
+
+    const timer = setTimeout(() => {
+      Animated.parallel([
+        Animated.timing(contentOpacity, {
+          toValue: 0,
+          duration: 180,
+          useNativeDriver: true,
+        }),
+        Animated.timing(iconOpacity, {
+          toValue: 0,
+          duration: 180,
+          useNativeDriver: true,
+        }),
+        Animated.timing(iconScale, {
+          toValue: 0.94,
+          duration: 180,
+          useNativeDriver: true,
+        }),
+      ]).start(() => onComplete());
     }, duration);
 
     return () => {
       clearTimeout(timer);
-      if (textIntervalRef.current) {
-        clearInterval(textIntervalRef.current);
-      }
+      pulseLoop.stop();
     };
-  }, [iconScale, iconOpacity, shadowOpacity, textOpacity, cursorOpacity, containerScale, onComplete, duration]);
+  }, [contentOpacity, contentY, duration, iconOpacity, iconScale, onComplete, pulse]);
 
   return (
     <View style={styles.screen}>
       <MagicBackground />
+
+      <View style={styles.orbits}>
+        <Animated.View
+          style={[
+            styles.orbit,
+            styles.orbitOne,
+            {
+              opacity: pulse.interpolate({
+                inputRange: [0, 1],
+                outputRange: [0.25, 0.46],
+              }),
+            },
+          ]}
+        />
+        <Animated.View
+          style={[
+            styles.orbit,
+            styles.orbitTwo,
+            {
+              opacity: pulse.interpolate({
+                inputRange: [0, 1],
+                outputRange: [0.12, 0.28],
+              }),
+            },
+          ]}
+        />
+      </View>
+
       <Animated.View
         style={[
-          styles.container,
+          styles.hero,
           {
-            transform: [{scale: containerScale}],
+            opacity: iconOpacity,
+            transform: [{scale: iconScale}],
           },
-        ]}
-      >
-        {/* Icon with shadow */}
-        <View style={styles.iconContainer}>
-          <Animated.View
-            style={[
-              styles.shadowLayer,
-              {
-                opacity: shadowOpacity,
-              },
-            ]}
-          />
-          <Animated.Image
-            source={require('../../android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png')}
-            style={[
-              styles.icon,
-              {
-                opacity: iconOpacity,
-                transform: [{scale: iconScale}],
-              },
-            ]}
+        ]}>
+        <View style={styles.iconFrame}>
+          <Image
+            source={require('../../assets/icons/app-icon.png')}
+            style={styles.icon}
           />
         </View>
 
-        {/* Text with typed animation */}
-        <Animated.View style={[styles.textContainer, {opacity: textOpacity}]}>
-          <Text style={styles.appName}>
-            {displayedChars}
-            <Animated.Text style={[styles.cursor, {opacity: cursorOpacity}]}>
-              |
-            </Animated.Text>
+        <Animated.View
+          style={[
+            styles.copy,
+            {
+              opacity: contentOpacity,
+              transform: [{translateY: contentY}],
+            },
+          ]}>
+          <Text style={styles.title}>EarGuard</Text>
+          <Text style={styles.subtitle}>
+            Gentle call reminders, clear guidance, and no visual clutter.
           </Text>
-          <Text style={styles.tagline}>Protect your hearing</Text>
+
+          <View style={styles.badgeRow}>
+            <View style={styles.badge}>
+              <LineIcon name="phone" size={14} color={COLORS.primary} />
+              <Text style={styles.badgeText}>Call-aware</Text>
+            </View>
+            <View style={styles.badge}>
+              <LineIcon name="moon" size={14} color={COLORS.accent} />
+              <Text style={styles.badgeText}>Quiet-friendly</Text>
+            </View>
+          </View>
+
+          <View style={styles.loadingTrack}>
+            <Animated.View
+              style={[
+                styles.loadingFill,
+                {
+                  transform: [
+                    {
+                      scaleX: pulse.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [0.55, 1],
+                      }),
+                    },
+                  ],
+                },
+              ]}
+            />
+          </View>
+          <Text style={styles.loadingText}>Preparing your workspace</Text>
         </Animated.View>
       </Animated.View>
     </View>
@@ -181,54 +191,114 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
     justifyContent: 'center',
     alignItems: 'center',
+    padding: 24,
   },
-  container: {
-    alignItems: 'center',
+  orbits: {
+    ...StyleSheet.absoluteFill,
     justifyContent: 'center',
+    alignItems: 'center',
   },
-  iconContainer: {
-    position: 'relative',
-    width: 120,
-    height: 120,
-    marginBottom: 40,
+  orbit: {
+    position: 'absolute',
+    borderWidth: 1,
+    borderColor: 'rgba(37,99,235,0.14)',
+    borderStyle: 'solid',
+  },
+  orbitOne: {
+    width: 250,
+    height: 250,
+    borderRadius: 125,
+  },
+  orbitTwo: {
+    width: 360,
+    height: 360,
+    borderRadius: 180,
+  },
+  hero: {
+    width: '100%',
+    maxWidth: 380,
+    alignItems: 'center',
+  },
+  iconFrame: {
+    width: 132,
+    height: 132,
+    borderRadius: 38,
+    backgroundColor: 'rgba(255,255,255,0.82)',
+    borderWidth: 1,
+    borderColor: 'rgba(216,225,238,0.86)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: COLORS.shadowDark,
+    shadowOffset: {width: 0, height: 16},
+    shadowOpacity: 0.14,
+    shadowRadius: 24,
+    elevation: 5,
   },
   icon: {
-    width: 120,
-    height: 120,
-    borderRadius: 30,
+    width: 102,
+    height: 102,
+    borderRadius: 28,
   },
-  shadowLayer: {
-    position: 'absolute',
-    bottom: -20,
-    left: '50%',
-    marginLeft: -45,
-    width: 90,
-    height: 20,
-    backgroundColor: COLORS.primary,
-    borderRadius: 50,
-    opacity: 0.2,
-  },
-  textContainer: {
+  copy: {
+    marginTop: 28,
     alignItems: 'center',
   },
-  appName: {
-    fontSize: 42,
-    fontWeight: '700',
-    color: COLORS.primary,
-    letterSpacing: 1.5,
-    fontFamily: 'System',
+  title: {
+    color: COLORS.text,
+    fontSize: 32,
+    fontWeight: '900',
+    letterSpacing: -0.7,
   },
-  cursor: {
-    fontSize: 42,
-    fontWeight: '700',
-    color: COLORS.primary,
-    marginLeft: 2,
+  subtitle: {
+    marginTop: 10,
+    color: COLORS.textSoft,
+    fontSize: 15,
+    lineHeight: 22,
+    textAlign: 'center',
+    maxWidth: 300,
   },
-  tagline: {
-    fontSize: 14,
-    color: COLORS.muted,
+  badgeRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 18,
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+  },
+  badge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.92)',
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  badgeText: {
+    color: COLORS.text,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  loadingTrack: {
+    marginTop: 28,
+    width: 180,
+    height: 4,
+    borderRadius: 999,
+    backgroundColor: 'rgba(148,163,184,0.18)',
+    overflow: 'hidden',
+  },
+  loadingFill: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 999,
+    backgroundColor: COLORS.primary,
+  },
+  loadingText: {
     marginTop: 12,
-    fontWeight: '500',
-    letterSpacing: 0.5,
+    color: COLORS.textSoft,
+    fontSize: 13,
+    fontWeight: '600',
+    letterSpacing: 0.2,
   },
 });

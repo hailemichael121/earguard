@@ -2,18 +2,18 @@ import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {
   Animated,
   Modal,
+  Pressable,
   ScrollView,
   StyleSheet,
   Switch,
   Text,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {COLORS, DEFAULT_PREFS, SOUND_MAP} from '../constants';
 import {AnimatedChip} from '../components/AnimatedChip';
-import {AnimatedSettingCard} from '../components/AnimatedSettingCard';
-import {MagicBackground} from '../components/MagicBackground';
+import {IconBadge, SectionHeader, SurfaceCard} from '../components/Ui';
+import {LineIcon, type LineIconName} from '../components/LineIcon';
 import {EarGuardNative, soundLabelForFile} from '../native/earguard';
 import {sharedStyles} from '../styles';
 import type {AppPreferences} from '../types';
@@ -21,9 +21,10 @@ import type {AppPreferences} from '../types';
 type Props = {
   onBack: () => void;
   onSettingsChanged: () => void;
+  onNotify: (toast: {message: string; icon: LineIconName; tone: 'info' | 'success' | 'warning' | 'error'}) => void;
 };
 
-function AnimatedSwitchRow({
+function ToggleRow({
   label,
   value,
   onValueChange,
@@ -45,29 +46,27 @@ function AnimatedSwitchRow({
 
   const bg = flash.interpolate({
     inputRange: [0, 1],
-    outputRange: ['rgba(41, 121, 255, 0)', 'rgba(41, 121, 255, 0.12)'],
+    outputRange: ['rgba(37,99,235,0)', 'rgba(37,99,235,0.09)'],
   });
 
   return (
-    <Animated.View style={[styles.row, styles.switchRow, {backgroundColor: bg}]}>
-      <Text style={styles.label}>{label}</Text>
+    <Animated.View style={[styles.toggleRow, {backgroundColor: bg}]}>
+      <Text style={styles.toggleLabel}>{label}</Text>
       <Switch
         value={value}
-        trackColor={{false: '#BDBDBD', true: COLORS.primary}}
+        trackColor={{false: '#CBD5E1', true: COLORS.primary}}
+        thumbColor={COLORS.white}
         onValueChange={handleChange}
       />
     </Animated.View>
   );
 }
 
-export function SettingsScreen({onBack, onSettingsChanged}: Props) {
+export function SettingsScreen({onBack, onSettingsChanged, onNotify}: Props) {
   const [prefs, setPrefs] = useState<AppPreferences>(DEFAULT_PREFS);
   const [soundModalVisible, setSoundModalVisible] = useState(false);
   const [tempSoundName, setTempSoundName] = useState('Classic Chime');
-  const [savedToast, setSavedToast] = useState(false);
   const appear = useRef(new Animated.Value(0)).current;
-  const toastY = useRef(new Animated.Value(24)).current;
-  const toastOpacity = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     Animated.timing(appear, {
@@ -77,18 +76,6 @@ export function SettingsScreen({onBack, onSettingsChanged}: Props) {
     }).start();
   }, [appear]);
 
-  useEffect(() => {
-    if (!savedToast) {
-      return;
-    }
-    toastY.setValue(24);
-    toastOpacity.setValue(0);
-    Animated.parallel([
-      Animated.spring(toastY, {toValue: 0, useNativeDriver: true, speed: 18, bounciness: 6}),
-      Animated.timing(toastOpacity, {toValue: 1, duration: 180, useNativeDriver: true}),
-    ]).start();
-  }, [savedToast, toastOpacity, toastY]);
-
   const load = useCallback(async () => {
     const loaded = await EarGuardNative.getPreferences();
     setPrefs(loaded);
@@ -96,7 +83,7 @@ export function SettingsScreen({onBack, onSettingsChanged}: Props) {
   }, []);
 
   useEffect(() => {
-    load();
+    load().catch(() => undefined);
   }, [load]);
 
   const save = useCallback(
@@ -104,10 +91,9 @@ export function SettingsScreen({onBack, onSettingsChanged}: Props) {
       setPrefs(next);
       await EarGuardNative.savePreferences(next);
       onSettingsChanged();
-      setSavedToast(true);
-      setTimeout(() => setSavedToast(false), 2000);
+      onNotify({message: 'Settings saved', icon: 'check', tone: 'success'});
     },
-    [onSettingsChanged],
+    [onNotify, onSettingsChanged],
   );
 
   const confirmSound = async () => {
@@ -116,95 +102,115 @@ export function SettingsScreen({onBack, onSettingsChanged}: Props) {
     setSoundModalVisible(false);
   };
 
-  let cardIndex = 0;
-
   return (
-    <SafeAreaView style={sharedStyles.screen} edges={['left', 'right', 'bottom']}>
-      <MagicBackground />
-      <Animated.View
-        style={[
-          styles.header,
-          {
-            opacity: appear,
-            transform: [
-              {
-                translateY: appear.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [-8, 0],
-                }),
-              },
-            ],
-          },
-        ]}>
-        <TouchableOpacity onPress={onBack}>
-          <Text style={styles.back}>← Back</Text>
-        </TouchableOpacity>
-        <Text style={styles.title}>Settings</Text>
-      </Animated.View>
+    <SafeAreaView style={sharedStyles.screen} edges={['top', 'left', 'right', 'bottom']}>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <Animated.View
+          style={[
+            styles.header,
+            {
+              opacity: appear,
+              transform: [
+                {
+                  translateY: appear.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [-8, 0],
+                  }),
+                },
+              ],
+            },
+          ]}>
+          <Pressable onPress={onBack} style={styles.backButton}>
+            <LineIcon name="back" size={16} color={COLORS.text} />
+          </Pressable>
+          <View style={styles.headerCopy}>
+            <Text style={styles.eyebrow}>Personalize</Text>
+            <Text style={styles.title}>Settings</Text>
+            <Text style={styles.subtitle}>
+              Keep the controls focused on what changes the reminder behavior.
+            </Text>
+          </View>
+        </Animated.View>
 
-      <ScrollView contentContainerStyle={styles.content} style={styles.scroll}>
-        <AnimatedSettingCard index={cardIndex++} style={styles.gapFirst}>
-          <AnimatedSwitchRow
-            label="Enable Reminders"
+        <SurfaceCard>
+          <SectionHeader
+            eyebrow="Monitoring"
+            title="Reminders and timing"
+            description="These settings control how often the app nudges you during calls."
+          />
+          <ToggleRow
+            label="Enable reminders"
             value={prefs.enabled}
             onValueChange={enabled => save({...prefs, enabled})}
           />
-        </AnimatedSettingCard>
-
-        <AnimatedSettingCard index={cardIndex++} style={styles.gap}>
-          <AnimatedSwitchRow
-            label="Enable Sound"
-            value={prefs.useSound}
-            onValueChange={useSound => save({...prefs, useSound})}
-          />
-        </AnimatedSettingCard>
-
-        {prefs.useSound && (
-          <>
-            <Animated.View
-              style={[
-                styles.gap,
-                {
-                  opacity: appear,
-                  transform: [{scale: appear}],
-                },
-              ]}>
-              <TouchableOpacity
-                style={[sharedStyles.primaryButton, styles.soundButton]}
-                onPress={() => setSoundModalVisible(true)}>
-                <Text style={sharedStyles.buttonTextLight}>Select Reminder Sound</Text>
-              </TouchableOpacity>
-            </Animated.View>
-            <Text style={styles.selected}>Selected: {soundLabelForFile(prefs.sound)}</Text>
-          </>
-        )}
-
-        <AnimatedSettingCard index={cardIndex++} style={styles.gap}>
-          <Text style={styles.label}>Smart Reminder Intensity</Text>
-          <Text style={styles.helper}>
-            Gentle for long intervals, stronger for short intervals.
-          </Text>
-          <AnimatedSwitchRow
+          <View style={styles.inlineNote}>
+            <IconBadge name="timer" tone="primary" size={28} />
+            <View style={styles.inlineCopy}>
+              <Text style={styles.inlineTitle}>Reminder interval</Text>
+              <Text style={styles.inlineText}>{Math.round(prefs.interval)} minutes</Text>
+            </View>
+          </View>
+          <View style={styles.chipRow}>
+            {[5, 10, 15, 20, 30].map(value => (
+              <AnimatedChip
+                key={value}
+                label={String(value)}
+                active={Math.round(prefs.interval) === value}
+                onPress={() => save({...prefs, interval: value})}
+              />
+            ))}
+          </View>
+          <View style={styles.divider} />
+          <ToggleRow
             label="Smart intensity"
             value={prefs.smartIntensity}
             onValueChange={smartIntensity => save({...prefs, smartIntensity})}
           />
-        </AnimatedSettingCard>
+          <Text style={styles.helper}>
+            The app uses a gentler vibration for longer intervals and a quicker pulse for short ones.
+          </Text>
+        </SurfaceCard>
 
-        <AnimatedSettingCard index={cardIndex++} style={styles.gap}>
-          <Text style={styles.label}>Quiet Hours</Text>
-          <Text style={styles.helper}>Reduce disturbance during selected time window.</Text>
-          <AnimatedSwitchRow
-            label="Enable quiet hours"
+        <SurfaceCard>
+          <SectionHeader
+            eyebrow="Alerts"
+            title="Sound and quiet hours"
+            description="Keep alert styles obvious but low-friction."
+          />
+          <ToggleRow
+            label="Enable sound"
+            value={prefs.useSound}
+            onValueChange={useSound => save({...prefs, useSound})}
+          />
+          {prefs.useSound ? (
+            <>
+              <Pressable
+                onPress={() => setSoundModalVisible(true)}
+                style={({pressed}) => [styles.selectRow, pressed && styles.selectRowPressed]}>
+                <View style={[styles.inlineNote, styles.selectRowContent]}>
+                  <IconBadge name="sound" tone="accent" size={28} />
+                  <View style={styles.inlineCopy}>
+                    <Text style={styles.inlineTitle}>Reminder sound</Text>
+                    <Text style={styles.inlineText}>{soundLabelForFile(prefs.sound)}</Text>
+                  </View>
+                </View>
+                <LineIcon name="back" size={16} color={COLORS.textSoft} style={styles.chevron} />
+              </Pressable>
+            </>
+          ) : null}
+
+          <View style={styles.divider} />
+          <ToggleRow
+            label="Quiet hours"
             value={prefs.quietHoursEnabled}
             onValueChange={quietHoursEnabled => save({...prefs, quietHoursEnabled})}
           />
-          {prefs.quietHoursEnabled && (
+          {prefs.quietHoursEnabled ? (
             <>
-              <Text style={styles.selected}>
-                Active: {prefs.quietStart} - {prefs.quietEnd}
+              <Text style={styles.helper}>
+                Active window: {prefs.quietStart} - {prefs.quietEnd}
               </Text>
-              <View style={styles.sliderRow}>
+              <View style={styles.chipRow}>
                 {[
                   ['22:00', '07:00'],
                   ['23:00', '06:00'],
@@ -222,72 +228,65 @@ export function SettingsScreen({onBack, onSettingsChanged}: Props) {
                 })}
               </View>
             </>
-          )}
-        </AnimatedSettingCard>
+          ) : null}
+        </SurfaceCard>
 
-        <AnimatedSettingCard index={cardIndex++} style={styles.gap}>
-          <Text style={styles.label}>Reminder Interval</Text>
-          <Text style={styles.intervalValue}>{Math.round(prefs.interval)} minutes</Text>
-          <View style={styles.sliderRow}>
-            {[1, 5, 10, 15, 20, 25, 30].map(value => (
-              <AnimatedChip
-                key={value}
-                label={String(value)}
-                active={Math.round(prefs.interval) === value}
-                onPress={() => save({...prefs, interval: value})}
-              />
-            ))}
-          </View>
-        </AnimatedSettingCard>
       </ScrollView>
-
-      {savedToast && (
-        <Animated.View
-          style={[
-            styles.toast,
-            {
-              opacity: toastOpacity,
-              transform: [{translateY: toastY}],
-            },
-          ]}>
-          <Text style={styles.toastText}>Settings saved</Text>
-        </Animated.View>
-      )}
-
       <Modal visible={soundModalVisible} animationType="slide" transparent>
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select Reminder Sound</Text>
-              <TouchableOpacity onPress={() => setSoundModalVisible(false)}>
-                <Text style={styles.close}>✕</Text>
-              </TouchableOpacity>
+              <View>
+                <Text style={styles.modalEyebrow}>Audio</Text>
+                <Text style={styles.modalTitle}>Select reminder sound</Text>
+              </View>
+              <Pressable onPress={() => setSoundModalVisible(false)} style={styles.closeButton}>
+                <LineIcon name="close" size={16} color={COLORS.text} />
+              </Pressable>
             </View>
-            <ScrollView>
+
+            <ScrollView contentContainerStyle={styles.soundList} showsVerticalScrollIndicator={false}>
               {Object.keys(SOUND_MAP).map(name => {
                 const selected = tempSoundName === name;
                 return (
-                  <TouchableOpacity
+                  <Pressable
                     key={name}
-                    style={[styles.soundRow, selected && styles.soundRowSelected]}
                     onPress={() => {
                       setTempSoundName(name);
-                      EarGuardNative.playSound(SOUND_MAP[name]);
-                    }}>
-                    <Text style={[styles.soundName, selected && styles.soundNameSelected]}>
-                      {name}
-                    </Text>
-                    <TouchableOpacity
-                      onPress={() => EarGuardNative.playSound(SOUND_MAP[name])}>
-                      <Text style={styles.play}>▶</Text>
-                    </TouchableOpacity>
-                  </TouchableOpacity>
+                      EarGuardNative.playSound(SOUND_MAP[name]).catch(() => undefined);
+                    }}
+                    style={({pressed}) => [
+                      styles.soundRow,
+                      selected && styles.soundRowSelected,
+                      pressed && styles.soundRowPressed,
+                    ]}>
+                    <View style={styles.soundRowLeft}>
+                      <IconBadge name={selected ? 'check' : 'sound'} tone={selected ? 'primary' : 'muted'} size={28} />
+                      <View style={styles.soundCopy}>
+                        <Text style={[styles.soundName, selected && styles.soundNameSelected]}>
+                          {name}
+                        </Text>
+                        <Text style={styles.soundHint}>
+                          {selected ? 'Selected' : 'Preview available'}
+                        </Text>
+                      </View>
+                    </View>
+                    <Pressable
+                      onPress={() => {
+                        EarGuardNative.playSound(SOUND_MAP[name]).catch(() => undefined);
+                      }}
+                      hitSlop={10}
+                      style={styles.playButton}>
+                      <LineIcon name="play" size={13} color={COLORS.primary} />
+                    </Pressable>
+                  </Pressable>
                 );
               })}
             </ScrollView>
-            <TouchableOpacity style={styles.confirm} onPress={confirmSound}>
-              <Text style={sharedStyles.buttonTextLight}>Confirm Selection</Text>
-            </TouchableOpacity>
+
+            <Pressable onPress={confirmSound} style={styles.confirmButton}>
+              <Text style={sharedStyles.buttonTextLight}>Confirm selection</Text>
+            </Pressable>
           </View>
         </View>
       </Modal>
@@ -296,82 +295,233 @@ export function SettingsScreen({onBack, onSettingsChanged}: Props) {
 }
 
 const styles = StyleSheet.create({
+  content: {
+    padding: 20,
+    paddingBottom: 36,
+    gap: 16,
+  },
   header: {
-    paddingTop: 48,
-    paddingHorizontal: 20,
-    paddingBottom: 12,
+    flexDirection: 'row',
+    gap: 14,
+    alignItems: 'flex-start',
   },
-  scroll: {flex: 1},
-  back: {color: COLORS.primary, fontSize: 16, marginBottom: 8},
-  title: {fontSize: 24, fontWeight: '700', color: COLORS.text},
-  content: {padding: 20, paddingBottom: 40},
-  row: {flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between'},
-  switchRow: {
-    borderRadius: 10,
-    paddingVertical: 4,
-    paddingHorizontal: 2,
-    marginTop: 4,
-  },
-  gapFirst: {},
-  gap: {marginTop: 16},
-  label: {fontSize: 16, color: COLORS.text, flex: 1},
-  helper: {color: COLORS.muted, marginTop: 6, lineHeight: 20},
-  intervalValue: {fontSize: 20, fontWeight: '700', color: COLORS.text, marginVertical: 8},
-  sliderRow: {flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8},
-  selected: {marginTop: 8, color: '#757575'},
-  soundButton: {backgroundColor: COLORS.primary},
-  toast: {
-    position: 'absolute',
-    left: 20,
-    right: 20,
-    bottom: 24,
-    backgroundColor: COLORS.white,
-    borderRadius: 12,
-    padding: 14,
-    elevation: 8,
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: COLORS.surface,
     borderWidth: 1,
-    borderColor: '#E1E8FF',
+    borderColor: COLORS.border,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  toastText: {color: COLORS.text, textAlign: 'center', fontWeight: '600'},
+  headerCopy: {
+    flex: 1,
+  },
+  eyebrow: {
+    color: COLORS.accent,
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 1.1,
+    textTransform: 'uppercase',
+    marginBottom: 6,
+  },
+  title: {
+    color: COLORS.text,
+    fontSize: 28,
+    fontWeight: '900',
+    letterSpacing: -0.5,
+  },
+  subtitle: {
+    marginTop: 6,
+    color: COLORS.textSoft,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  toggleRow: {
+    borderRadius: 18,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: COLORS.border,
+    backgroundColor: 'rgba(255,253,248,0.6)',
+  },
+  toggleLabel: {
+    color: COLORS.text,
+    fontSize: 15,
+    fontWeight: '700',
+    flex: 1,
+    paddingRight: 12,
+  },
+  inlineNote: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: 'rgba(243,238,228,0.72)',
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderStyle: 'dashed',
+    borderRadius: 18,
+    padding: 12,
+  },
+  inlineCopy: {
+    flex: 1,
+  },
+  inlineTitle: {
+    color: COLORS.text,
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  inlineText: {
+    marginTop: 3,
+    color: COLORS.textSoft,
+    fontSize: 13,
+  },
+  helper: {
+    marginTop: 8,
+    color: COLORS.textSoft,
+    fontSize: 13,
+    lineHeight: 19,
+  },
+  chipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 10,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: COLORS.border,
+    marginVertical: 14,
+  },
+  selectRow: {
+    marginTop: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    padding: 2,
+  },
+  selectRowPressed: {
+    opacity: 0.9,
+  },
+  selectRowContent: {
+    flex: 1,
+  },
+  chevron: {
+    transform: [{rotate: '180deg'}],
+  },
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.35)',
+    backgroundColor: 'rgba(15,23,42,0.36)',
     justifyContent: 'flex-end',
   },
   modalCard: {
-    backgroundColor: COLORS.white,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    maxHeight: '80%',
-    padding: 16,
+    backgroundColor: COLORS.surface,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    maxHeight: '84%',
+    padding: 18,
+    borderTopWidth: 1,
+    borderColor: COLORS.border,
+    borderStyle: 'dashed',
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
+    alignItems: 'flex-start',
+    gap: 12,
+    marginBottom: 14,
   },
-  modalTitle: {fontSize: 20, fontWeight: '700', color: COLORS.text},
-  close: {fontSize: 22, color: '#757575'},
+  modalEyebrow: {
+    color: COLORS.accent,
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 1.1,
+    textTransform: 'uppercase',
+    marginBottom: 4,
+  },
+  modalTitle: {
+    color: COLORS.text,
+    fontSize: 22,
+    fontWeight: '900',
+    letterSpacing: -0.4,
+  },
+  closeButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: COLORS.surface,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  soundList: {
+    gap: 10,
+    paddingBottom: 12,
+  },
   soundRow: {
     borderWidth: 1,
-    borderColor: '#E0E0E0',
-    borderRadius: 12,
+    borderColor: COLORS.border,
+    borderStyle: 'dashed',
+    borderRadius: 20,
     padding: 12,
-    marginBottom: 8,
+    backgroundColor: 'rgba(255,253,248,0.95)',
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    gap: 12,
   },
-  soundRowSelected: {borderColor: COLORS.primary, backgroundColor: '#E3F2FD'},
-  soundName: {fontSize: 16, color: COLORS.text},
-  soundNameSelected: {color: COLORS.primary, fontWeight: '600'},
-  play: {fontSize: 18, color: COLORS.primary},
-  confirm: {
-    marginTop: 12,
+  soundRowSelected: {
+    borderColor: COLORS.primary,
+    backgroundColor: 'rgba(232,228,217,0.96)',
+  },
+  soundRowPressed: {
+    opacity: 0.96,
+  },
+  soundRowLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+  },
+  soundCopy: {
+    flex: 1,
+  },
+  soundName: {
+    fontSize: 15,
+    color: COLORS.text,
+    fontWeight: '800',
+  },
+  soundNameSelected: {
+    color: COLORS.primary,
+  },
+  soundHint: {
+    marginTop: 3,
+    color: COLORS.textSoft,
+    fontSize: 12,
+  },
+  playButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.surfaceMuted,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderStyle: 'dashed',
+  },
+  confirmButton: {
+    marginTop: 10,
     backgroundColor: COLORS.primary,
-    borderRadius: 12,
-    paddingVertical: 14,
+    borderRadius: 18,
+    paddingVertical: 15,
     alignItems: 'center',
   },
 });

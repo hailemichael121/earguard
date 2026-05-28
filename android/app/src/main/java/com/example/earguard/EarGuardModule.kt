@@ -166,6 +166,70 @@ class EarGuardModule(private val reactContext: ReactApplicationContext) :
   }
 
   @ReactMethod
+  fun getCallHistory(limit: Double, promise: Promise) {
+    if (ContextCompat.checkSelfPermission(reactContext, Manifest.permission.READ_CALL_LOG) !=
+      PackageManager.PERMISSION_GRANTED) {
+      promise.resolve(Arguments.createArray())
+      return
+    }
+
+    try {
+      val maxItems = limit.toInt().coerceIn(1, 100)
+      val cursor =
+          reactContext.contentResolver.query(
+              CallLog.Calls.CONTENT_URI,
+              arrayOf(
+                  CallLog.Calls._ID,
+                  CallLog.Calls.CACHED_NAME,
+                  CallLog.Calls.NUMBER,
+                  CallLog.Calls.DATE,
+                  CallLog.Calls.DURATION,
+                  CallLog.Calls.TYPE,
+              ),
+              null,
+              null,
+              "${CallLog.Calls.DATE} DESC",
+          )
+
+      val results =
+          Arguments.createArray().apply {
+            cursor?.use {
+              var count = 0
+              while (it.moveToNext() && count < maxItems) {
+                val item = Arguments.createMap()
+                val id = it.getLong(it.getColumnIndexOrThrow(CallLog.Calls._ID))
+                val cachedName = it.getString(it.getColumnIndexOrThrow(CallLog.Calls.CACHED_NAME))
+                val number = it.getString(it.getColumnIndexOrThrow(CallLog.Calls.NUMBER)) ?: "Unknown"
+                val date = it.getLong(it.getColumnIndexOrThrow(CallLog.Calls.DATE))
+                val duration = it.getLong(it.getColumnIndexOrThrow(CallLog.Calls.DURATION))
+                val type = when (it.getInt(it.getColumnIndexOrThrow(CallLog.Calls.TYPE))) {
+                  CallLog.Calls.INCOMING_TYPE -> "INCOMING"
+                  CallLog.Calls.OUTGOING_TYPE -> "OUTGOING"
+                  CallLog.Calls.MISSED_TYPE -> "MISSED"
+                  CallLog.Calls.REJECTED_TYPE -> "REJECTED"
+                  CallLog.Calls.VOICEMAIL_TYPE -> "VOICEMAIL"
+                  CallLog.Calls.BLOCKED_TYPE -> "BLOCKED"
+                  else -> "UNKNOWN"
+                }
+
+                item.putString("id", id.toString())
+                item.putString("name", cachedName ?: number)
+                item.putString("number", number)
+                item.putDouble("durationSeconds", duration.toDouble())
+                item.putString("date", date.toString())
+                item.putString("type", type)
+                pushMap(item)
+                count += 1
+              }
+            }
+          }
+      promise.resolve(results)
+    } catch (e: Exception) {
+      promise.reject("CALL_HISTORY_ERROR", e.message, e)
+    }
+  }
+
+  @ReactMethod
   fun getCallerInfo(promise: Promise) {
     if (ContextCompat.checkSelfPermission(reactContext, Manifest.permission.READ_CALL_LOG) !=
       PackageManager.PERMISSION_GRANTED) {

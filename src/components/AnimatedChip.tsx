@@ -58,12 +58,20 @@ export function AnimatedChip({label, active, onPress, style, textStyle}: Props) 
 const styles = StyleSheet.create({
   chip: {
     borderWidth: 1,
-    borderColor: '#CCC',
-    borderRadius: 20,
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.surface,
+    borderRadius: 999,
     paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingVertical: 8,
   },
-  chipActive: {borderColor: COLORS.primary, backgroundColor: '#E3F2FD'},
-  chipText: {color: COLORS.text},
-  chipTextActive: {color: COLORS.primary, fontWeight: '700'},
+  chipActive: {
+    borderColor: COLORS.primary,
+    backgroundColor: COLORS.primarySoft,
+  },
+  chipText: {
+    color: COLORS.textSoft,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  chipTextActive: {color: COLORS.primary, fontWeight: '800'},
 });
