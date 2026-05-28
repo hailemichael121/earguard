@@ -17,8 +17,12 @@ android/.gradle/
 android/app/build/
 android/build/
 android/local.properties
-android/.cxx/
+android/.kotlin/
 *.keystore
+
+# Native / CMake build cache (regenerated every build — never commit)
+.cxx/
+**/.cxx/
 
 # iOS
 ios/Pods/

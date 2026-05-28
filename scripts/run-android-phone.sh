@@ -1,11 +1,9 @@
 #!/usr/bin/env bash
-# Run debug build on a USB-connected phone (USB debugging on). Uses JDK 17 + current Node.
+# Run debug build on a USB-connected phone (USB debugging on). Uses JDK 17 + your current Node.
 set -euo pipefail
-
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
-# Always use JDK 17 when installed.
 JAVA17=""
 for _jdk in \
   /usr/lib/jvm/java-17-openjdk-amd64 \
@@ -23,20 +21,15 @@ else
   echo "WARN: No JDK 17 found under /usr/lib/jvm. Install: sudo apt install openjdk-17-jdk" >&2
 fi
 
-# Force Gradle to avoid broken NDK env overrides.
 unset ANDROID_NDK_HOME || true
 unset ANDROID_NDK_ROOT || true
 unset NDK_HOME || true
 
-# Gradle autolinking: pass Node explicitly (nvm is often missing from Gradle PATH)
 if [[ -z "${NODE_BINARY:-}" ]] && command -v node >/dev/null 2>&1; then
   export NODE_BINARY="$(command -v node)"
 fi
 
-echo "→ Patching Gradle plugin..." >&2
-pnpm android:patch-gradle-plugin
-
-echo "→ Preparing build (versioning)..." >&2
+pnpm android:patch
 pnpm build:prepare
 
 echo "Using java: $(command -v java 2>/dev/null || true)"
@@ -46,17 +39,14 @@ command -v node >/dev/null 2>&1 && node -v || true
 
 (cd android && ./gradlew --stop 2>/dev/null) || true
 
-# Phone must reach Metro on 8081.
 if command -v adb >/dev/null 2>&1; then
   if adb devices 2>/dev/null | grep -qE '[[:alnum:]]+[[:space:]]+device$'; then
-    echo "→ Setting up ADB reverse (Metro on 8081)..." >&2
-    adb reverse tcp:8081 tcp:8081 && echo "  ✓ USB debug ready" || true
+    adb reverse tcp:8081 tcp:8081 && echo "USB: adb reverse tcp:8081 (Metro → phone OK)" || true
   else
-    echo "No USB device in 'adb devices'. For Wi-Fi: set Debug server host to PC_IP:8081" >&2
+    echo "No USB device in 'adb devices'. For Wi‑Fi: set Debug server host to PC_IP:8081" >&2
   fi
 else
-  echo "adb not on PATH - install platform-tools or use Wi-Fi + Debug server host" >&2
+  echo "adb not on PATH — install platform-tools or use Wi‑Fi + Debug server host" >&2
 fi
 
-echo "→ Installing and running on device..." >&2
 exec npx react-native run-android "$@"

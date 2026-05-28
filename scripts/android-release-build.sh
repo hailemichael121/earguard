@@ -31,7 +31,7 @@ esac
 
 echo "EarGuard release build ($MODE) - clean + optimized (arm64-v8a, R8, shrinkResources)..." >&2
 
-pnpm android:patch-gradle-plugin
+pnpm android:patch
 pnpm build:prepare
 
 bash "$ROOT/scripts/android-with-jdk17.sh" "$ROOT/android/gradlew" -p "$ROOT/android" clean "${GRADLE_TASKS[@]}"

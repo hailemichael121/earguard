@@ -1,51 +1,27 @@
 #!/usr/bin/env bash
-# EarGuard Build System — Quick Reference
-#
-# Ensure Metro dev server is running before building Android:
-#   pnpm start
-#
-# Then in another terminal, use any of these:
+# EarGuard — quick reference (JanAlarm-style workflow)
 
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "  EarGuard Development Commands"
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo ""
-echo "METRO (Development)"
-echo "  pnpm start              Start Metro bundler (localhost:8081)"
-echo "  pnpm start:metro        Alias for pnpm start"
-echo ""
-echo "ANDROID DEBUG"
-echo "  pnpm android            Build & install debug APK on USB device"
-echo "  pnpm android:debug      Alias for pnpm android"
-echo "  pnpm android:reverse    Forward Metro 8081 to device (if ADB offline)"
-echo ""
-echo "ANDROID RELEASE"
-echo "  pnpm android:release    Build optimized APK + AAB (Play Store bundle)"
-echo "  pnpm android:apk        Release APK only (~12-18 MB, sideload)"
-echo "  pnpm android:aab        Release AAB only (~10-15 MB, Google Play)"
-echo ""
-echo "iOS"
-echo "  pnpm ios                Build & install on simulator/device"
-echo ""
-echo "CODE QUALITY"
-echo "  pnpm lint               ESLint check"
-echo "  pnpm test               Jest unit tests"
-echo ""
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo ""
-echo "TYPICAL WORKFLOW:"
-echo ""
-echo "  # Terminal 1: Start Metro (keep running)"
-echo "  $ pnpm start"
-echo ""
-echo "  # Terminal 2: Build & run on device"
-echo "  $ pnpm android"
-echo ""
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo ""
-echo "Notes:"
-echo "  • JDK 17+ is auto-detected from /usr/lib/jvm (required for Gradle)"
-echo "  • Versioning: Build numbers auto-increment (v0.0.1+N)"
-echo "  • Release builds: Minify (R8), arm64-v8a, shrunk resources"
-echo "  • USB debugging must be enabled on Android device"
-echo ""
+cat <<'EOF'
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  EarGuard Development Commands
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+METRO (single terminal — press a for Android)
+  pnpm start              Start Metro (interactive: a, r, d, j)
+  pnpm start:metro        Same as pnpm start
+
+ANDROID
+  pnpm android            Build + install on USB device (bumps build #)
+  pnpm android:phone      Same as pnpm android
+  pnpm metro:usb          adb reverse tcp:8081 (if Metro can't load JS)
+
+ANDROID RELEASE
+  pnpm android:release    APK + AAB
+  pnpm android:apk        Release APK only
+  pnpm android:bundle     Release AAB only
+
+TYPICAL WORKFLOW (like JanAlarm):
+  $ pnpm start             # keep running; press a to run on phone
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+EOF
