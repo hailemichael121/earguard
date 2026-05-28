@@ -5,7 +5,6 @@
   "scripts": {
     "android:patch-gradle-plugin": "node scripts/patchGradlePlugin.js",
     "build:prepare": "node scripts/prepareBuild.js",
-    "icons:generate": "python3 scripts/generateAppIcons.py",
     "run": "pnpm android",
     "dev": "pnpm start",
     "android": "bash scripts/android-debug.sh",
@@ -35,7 +34,6 @@
     "@react-native-community/cli-platform-android": "20.1.0",
     "@react-native-community/cli-platform-ios": "20.1.0",
     "@react-native/babel-preset": "0.85.3",
-    "@react-native/codegen": "0.85.3",
     "@react-native/eslint-config": "0.85.3",
     "@react-native/gradle-plugin": "0.85.3",
     "@react-native/jest-preset": "0.85.3",
