@@ -1,82 +1,39 @@
-# Miscellaneous
-*.class
-*.log
-*.pyc
-*.swp
-.DS_Store
-.atom/
-.build/
-.buildlog/
-.history
-.svn/
-.swiftpm/
-migrate_working_dir/
+# Dependencies
+node_modules/
 
-# IntelliJ related
-*.iml
-*.ipr
-*.iws
-.idea/
+# Package manager
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
 
-# VS Code settings (uncomment if you want to ignore)
-#.vscode/
-
-# Flutter/Dart/Pub related
-.dart_tool/
-.flutter-plugins
-.flutter-plugins-dependencies
-.packages
-.pub-cache/
-.pub/
-build/
+# React Native / Metro
+.metro-health-check*
+metro-cache/
 coverage/
-generated_plugin_registrant.dart
 
-# iOS related
-ios/Flutter/App.framework
-ios/Flutter/Flutter.framework
-ios/Flutter/Flutter.podspec
-ios/Flutter/Generated.xcconfig
-ios/Flutter/ephemeral/
-ios/Flutter/ServiceDefinitions.json
-ios/Runner.xcworkspace/
-ios/Pods/
-ios/Podfile.lock
-ios/Podfile
-ios/.symlinks/
-ios/profile
-ios/Runner/GeneratedPluginRegistrant.*
-ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-*
-
-# Android related
+# Android
 android/.gradle/
 android/app/build/
 android/build/
-android/.idea/
 android/local.properties
-android/.settings/
 android/.cxx/
-android/gradle/
-android/gradlew
-android/gradlew.bat
-android/key.properties
+*.keystore
 
-# Web related
-web/.dart_tool/
-web/build/
+# iOS
+ios/Pods/
+ios/build/
 
-# Symbolication related
-app.*.symbols
+# Ruby / CocoaPods
+.bundle/
 
-# Obfuscation related
-app.*.map.json
+# Editor / OS
+.DS_Store
+.idea/
+*.iml
 
-# Others
-*.lock
+# Misc
 *.tmp
 *.temp
 *.bak
 *.orig
-*.swp
-*.swo
-*.swn

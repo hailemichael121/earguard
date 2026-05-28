@@ -1,0 +1,80 @@
+import {StyleSheet} from 'react-native';
+import {COLORS} from './constants';
+
+export const sharedStyles = StyleSheet.create({
+  screen: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+  },
+  card: {
+    backgroundColor: COLORS.white,
+    borderRadius: 16,
+    padding: 16,
+    shadowColor: COLORS.shadowDark,
+    shadowOffset: {width: 4, height: 4},
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  primaryButton: {
+    backgroundColor: '#FF9800',
+    borderRadius: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    shadowColor: COLORS.shadowDark,
+    shadowOffset: {width: 3, height: 3},
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 5,
+  },
+  secondaryButton: {
+    backgroundColor: '#E0E0E0',
+    borderRadius: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    shadowColor: COLORS.shadowDark,
+    shadowOffset: {width: 3, height: 3},
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  buttonTextLight: {
+    color: COLORS.white,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  buttonTextDark: {
+    color: COLORS.text,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  titleText: {
+    color: COLORS.text,
+    fontSize: 26,
+    fontWeight: '700',
+  },
+  subtitleText: {
+    color: COLORS.muted,
+    fontSize: 14,
+  },
+  gradientBlobA: {
+    position: 'absolute',
+    top: -80,
+    right: -40,
+    width: 220,
+    height: 220,
+    borderRadius: 110,
+    backgroundColor: 'rgba(41,121,255,0.18)',
+  },
+  gradientBlobB: {
+    position: 'absolute',
+    bottom: -70,
+    left: -50,
+    width: 240,
+    height: 240,
+    borderRadius: 120,
+    backgroundColor: 'rgba(125,77,255,0.14)',
+  },
+});

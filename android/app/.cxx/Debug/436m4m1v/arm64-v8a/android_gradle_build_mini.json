@@ -1,0 +1,43 @@
+{
+  "buildFiles": [
+    "/home/hailemichael121/Desktop/earguard/node_modules/react-native-safe-area-context/android/src/main/jni/CMakeLists.txt",
+    "/home/hailemichael121/Desktop/earguard/node_modules/react-native/ReactAndroid/cmake-utils/default-app-setup/CMakeLists.txt"
+  ],
+  "cleanCommandsComponents": [
+    [
+      "/home/hailemichael121/Android/Sdk/cmake/3.22.1/bin/ninja",
+      "-C",
+      "/home/hailemichael121/Desktop/earguard/android/app/.cxx/Debug/436m4m1v/arm64-v8a",
+      "clean"
+    ]
+  ],
+  "buildTargetsCommandComponents": [
+    "/home/hailemichael121/Android/Sdk/cmake/3.22.1/bin/ninja",
+    "-C",
+    "/home/hailemichael121/Desktop/earguard/android/app/.cxx/Debug/436m4m1v/arm64-v8a",
+    "{LIST_OF_TARGETS_TO_BUILD}"
+  ],
+  "libraries": {
+    "react_codegen_safeareacontext::@7984cd80db47aa7b952a": {
+      "artifactName": "react_codegen_safeareacontext",
+      "abi": "arm64-v8a",
+      "output": "/home/hailemichael121/Desktop/earguard/android/app/build/intermediates/cxx/Debug/436m4m1v/obj/arm64-v8a/libreact_codegen_safeareacontext.so",
+      "runtimeFiles": [
+        "/home/hailemichael121/.gradle/caches/8.14.3/transforms/e764dd4a46eb764d842470fb8cbc34d6/transformed/fbjni-0.7.0/prefab/modules/fbjni/libs/android.arm64-v8a/libfbjni.so",
+        "/home/hailemichael121/.gradle/caches/8.14.3/transforms/7d8980724018f9b33942e28fb5495817/transformed/react-android-0.85.3-debug/prefab/modules/jsi/libs/android.arm64-v8a/libjsi.so",
+        "/home/hailemichael121/.gradle/caches/8.14.3/transforms/7d8980724018f9b33942e28fb5495817/transformed/react-android-0.85.3-debug/prefab/modules/reactnative/libs/android.arm64-v8a/libreactnative.so"
+      ]
+    },
+    "appmodules::@6890427a1f51a3e7e1df": {
+      "artifactName": "appmodules",
+      "abi": "arm64-v8a",
+      "output": "/home/hailemichael121/Desktop/earguard/android/app/build/intermediates/cxx/Debug/436m4m1v/obj/arm64-v8a/libappmodules.so",
+      "runtimeFiles": [
+        "/home/hailemichael121/Desktop/earguard/android/app/build/intermediates/cxx/Debug/436m4m1v/obj/arm64-v8a/libreact_codegen_safeareacontext.so",
+        "/home/hailemichael121/.gradle/caches/8.14.3/transforms/e764dd4a46eb764d842470fb8cbc34d6/transformed/fbjni-0.7.0/prefab/modules/fbjni/libs/android.arm64-v8a/libfbjni.so",
+        "/home/hailemichael121/.gradle/caches/8.14.3/transforms/7d8980724018f9b33942e28fb5495817/transformed/react-android-0.85.3-debug/prefab/modules/jsi/libs/android.arm64-v8a/libjsi.so",
+        "/home/hailemichael121/.gradle/caches/8.14.3/transforms/7d8980724018f9b33942e28fb5495817/transformed/react-android-0.85.3-debug/prefab/modules/reactnative/libs/android.arm64-v8a/libreactnative.so"
+      ]
+    }
+  }
+}
