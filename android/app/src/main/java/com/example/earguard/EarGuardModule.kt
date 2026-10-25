@@ -249,13 +249,18 @@ class EarGuardModule(private val reactContext: ReactApplicationContext) :
       val result =
           cursor?.use {
             if (it.moveToFirst()) {
-              val name = it.getString(it.getColumnIndexOrThrow(CallLog.Calls.CACHED_NAME))
-              val number = it.getString(it.getColumnIndexOrThrow(CallLog.Calls.NUMBER))
-              name ?: number ?: "Unknown"
+              val name = it.getString(it.getColumnIndexOrThrow(CallLog.Calls.CACHED_NAME))?.trim()
+              val number = it.getString(it.getColumnIndexOrThrow(CallLog.Calls.NUMBER))?.trim()
+              when {
+                !name.isNullOrEmpty() && !number.isNullOrEmpty() -> "$name|$number"
+                !name.isNullOrEmpty() -> name
+                !number.isNullOrEmpty() -> number
+                else -> "Unknown Caller"
+              }
             } else {
-              "Unknown"
+              "Unknown Caller"
             }
-          } ?: "Unknown"
+          } ?: "Unknown Caller"
       promise.resolve(result)
     } catch (e: Exception) {
       Log.e(TAG, "Error retrieving caller info: ${e.message}")
@@ -322,7 +327,25 @@ class EarGuardModule(private val reactContext: ReactApplicationContext) :
   fun showOverlay(callerInfo: String?, promise: Promise) {
     try {
       val intent = Intent(reactContext, OverlayService::class.java)
-      intent.putExtra("callerInfo", callerInfo ?: "Unknown")
+      intent.putExtra("title", "EarGuard")
+      intent.putExtra("body", "Tracking your call with ${callerInfo ?: "Unknown"}.")
+      intent.putExtra("subtext", "")
+      intent.putExtra("dismissable", false)
+      reactContext.startService(intent)
+      promise.resolve(null)
+    } catch (e: Exception) {
+      promise.reject("OVERLAY_ERROR", e.message, e)
+    }
+  }
+
+  @ReactMethod
+  fun showCallOverlay(options: ReadableMap, promise: Promise) {
+    try {
+      val intent = Intent(reactContext, OverlayService::class.java)
+      intent.putExtra("title", options.getString("title") ?: "EarGuard")
+      intent.putExtra("body", options.getString("body") ?: "EarGuard is tracking your call.")
+      intent.putExtra("subtext", options.getString("subtext") ?: "")
+      intent.putExtra("dismissable", options.hasKey("dismissable") && options.getBoolean("dismissable"))
       reactContext.startService(intent)
       promise.resolve(null)
     } catch (e: Exception) {

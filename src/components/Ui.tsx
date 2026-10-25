@@ -9,28 +9,31 @@ import {
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
-import {COLORS} from '../constants';
-import {LineIcon, type LineIconName} from './LineIcon';
+import {COLORS, LAYOUT} from '../constants';
+import {AssetIcon, type AssetIconName} from './AssetIcon';
 import {sharedStyles} from '../styles';
 
 type Tone = 'primary' | 'accent' | 'success' | 'warning' | 'danger' | 'muted';
 
 const TONES: Record<Tone, {bg: string; fg: string; border: string}> = {
-  primary: {bg: COLORS.primarySoft, fg: COLORS.primary, border: 'rgba(34,37,45,0.14)'},
-  accent: {bg: COLORS.accentSoft, fg: COLORS.accent, border: 'rgba(90,94,103,0.14)'},
-  success: {bg: COLORS.successSoft, fg: COLORS.success, border: 'rgba(63,74,62,0.14)'},
-  warning: {bg: COLORS.warmSoft, fg: COLORS.warm, border: 'rgba(122,103,80,0.14)'},
-  danger: {bg: COLORS.errorSoft, fg: COLORS.error, border: 'rgba(107,90,87,0.14)'},
-  muted: {bg: COLORS.surfaceMuted, fg: COLORS.textSoft, border: COLORS.border},
+  primary: {bg: COLORS.primarySoft, fg: COLORS.primary, border: COLORS.borderLight},
+  accent: {bg: COLORS.accentSoft, fg: COLORS.accent, border: COLORS.borderLight},
+  success: {bg: COLORS.successSoft, fg: COLORS.success, border: COLORS.borderLight},
+  warning: {bg: COLORS.warmSoft, fg: COLORS.warm, border: COLORS.borderLight},
+  danger: {bg: COLORS.errorSoft, fg: COLORS.error, border: COLORS.borderLight},
+  muted: {bg: COLORS.surfaceMuted, fg: COLORS.textSoft, border: COLORS.borderLight},
 };
 
 type SurfaceCardProps = {
   children: React.ReactNode;
   style?: StyleProp<ViewStyle>;
+  /** bordered: top sections with outline; flat: bottom sections without outer border */
+  variant?: 'bordered' | 'flat';
 };
 
-export function SurfaceCard({children, style}: SurfaceCardProps) {
-  return <View style={[sharedStyles.card, styles.surface, style]}>{children}</View>;
+export function SurfaceCard({children, style, variant = 'bordered'}: SurfaceCardProps) {
+  const base = variant === 'flat' ? sharedStyles.cardFlat : sharedStyles.card;
+  return <View style={[base, styles.surface, style]}>{children}</View>;
 }
 
 type SectionHeaderProps = {
@@ -54,7 +57,7 @@ export function SectionHeader({eyebrow, title, description, action}: SectionHead
 }
 
 type IconBadgeProps = {
-  name: LineIconName;
+  name: AssetIconName;
   tone?: Tone;
   size?: number;
   style?: StyleProp<ViewStyle>;
@@ -69,13 +72,13 @@ export function IconBadge({name, tone = 'primary', size = 40, style}: IconBadgeP
         {
           width: size,
           height: size,
-          borderRadius: size / 2,
+          borderRadius: size / 2.8,
           backgroundColor: palette.bg,
           borderColor: palette.border,
         },
         style,
       ]}>
-      <LineIcon name={name} size={Math.round(size * 0.42)} color={palette.fg} />
+      <AssetIcon name={name} size={Math.round(size * 0.44)} color={palette.fg} />
     </View>
   );
 }
@@ -92,22 +95,19 @@ export function AppMark({source, size = 68, style}: AppMarkProps) {
       style={[
         styles.appMarkShell,
         {
-          width: size + 20,
-          height: size + 20,
-          borderRadius: (size + 20) / 2,
+          width: size + 16,
+          height: size + 16,
+          borderRadius: LAYOUT.radiusSm,
         },
         style,
       ]}>
-      <View style={styles.appMarkGlow} />
-      <View style={styles.appMarkStrokeA} />
-      <View style={styles.appMarkStrokeB} />
-      <Image source={source} style={{width: size, height: size, borderRadius: size * 0.22}} />
+      <Image source={source} style={{width: size, height: size, borderRadius: LAYOUT.radiusSm}} />
     </View>
   );
 }
 
 type MetricTileProps = {
-  icon: LineIconName;
+  icon: AssetIconName;
   label: string;
   value: string;
   tone?: Tone;
@@ -127,7 +127,7 @@ export function MetricTile({icon, label, value, tone = 'primary', style}: Metric
 type ActionButtonProps = {
   title: string;
   subtitle?: string;
-  icon: LineIconName;
+  icon: AssetIconName;
   tone?: Tone;
   variant?: 'primary' | 'secondary';
   onPress: () => void;
@@ -155,25 +155,27 @@ export function ActionButton({
       ]}>
       <IconBadge name={icon} tone={tone} size={34} style={styles.actionIcon} />
       <View style={styles.actionCopy}>
-        <Text style={[styles.actionTitle, isPrimary && styles.actionTitlePrimary]}>
-          {title}
-        </Text>
+        <Text style={[styles.actionTitle, isPrimary && styles.actionTitlePrimary]}>{title}</Text>
         {subtitle ? <Text style={styles.actionSubtitle}>{subtitle}</Text> : null}
       </View>
-      <LineIcon name="back" size={18} color={isPrimary ? COLORS.white : COLORS.textSoft} style={styles.actionChevron} />
+      <AssetIcon
+        name="chevronRight"
+        size={16}
+        color={isPrimary ? COLORS.white : COLORS.textSoft}
+      />
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   surface: {
-    padding: 18,
+    padding: LAYOUT.cardPadding,
   },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 12,
+    marginBottom: 14,
     gap: 12,
   },
   sectionHeaderCopy: {
@@ -181,104 +183,63 @@ const styles = StyleSheet.create({
   },
   eyebrow: {
     color: COLORS.accent,
-    fontSize: 12,
-    fontWeight: '800',
-    letterSpacing: 1.2,
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 1,
     textTransform: 'uppercase',
-    marginBottom: 6,
+    marginBottom: 4,
   },
   sectionTitle: {
     color: COLORS.text,
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '800',
     letterSpacing: -0.2,
   },
   sectionDescription: {
     marginTop: 4,
     color: COLORS.textSoft,
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: 13,
+    lineHeight: 18,
   },
   iconBadge: {
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderStyle: 'dashed',
   },
   appMarkShell: {
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,253,248,0.7)',
+    backgroundColor: COLORS.surface,
     borderWidth: 1,
-    borderStyle: 'dashed',
-    borderColor: 'rgba(65,60,54,0.2)',
-    shadowColor: COLORS.shadowDark,
-    shadowOffset: {width: 0, height: 8},
-    shadowOpacity: 0.1,
-    shadowRadius: 14,
-    elevation: 4,
-    transform: [{rotate: '-0.4deg'}],
-  },
-  appMarkGlow: {
-    position: 'absolute',
-    width: '92%',
-    height: '92%',
-    borderRadius: 999,
-    backgroundColor: 'rgba(34,37,45,0.05)',
-  },
-  appMarkStrokeA: {
-    position: 'absolute',
-    width: '78%',
-    height: '78%',
-    borderRadius: 999,
-    borderWidth: 1.2,
-    borderStyle: 'dashed',
-    borderColor: 'rgba(34,37,45,0.18)',
-    transform: [{rotate: '-4deg'}],
-  },
-  appMarkStrokeB: {
-    position: 'absolute',
-    width: '88%',
-    height: '88%',
-    borderRadius: 999,
-    borderWidth: 1,
-    borderStyle: 'dashed',
-    borderColor: 'rgba(34,37,45,0.1)',
-    transform: [{rotate: '6deg'}],
+    borderColor: COLORS.border,
+    ...LAYOUT.shadow,
   },
   metricTile: {
     flex: 1,
     minWidth: '31%',
-    backgroundColor: COLORS.surface,
-    borderRadius: 22,
+    backgroundColor: COLORS.surfaceMuted,
+    borderRadius: LAYOUT.radiusSm,
     borderWidth: 1,
-    borderColor: COLORS.border,
-    borderStyle: 'dashed',
-    padding: 14,
-    shadowColor: COLORS.shadowDark,
-    shadowOffset: {width: 0, height: 8},
-    shadowOpacity: 0.08,
-    shadowRadius: 14,
-    elevation: 2,
-    transform: [{rotate: '0.12deg'}],
+    borderColor: COLORS.borderLight,
+    padding: 12,
   },
   metricValue: {
-    marginTop: 12,
+    marginTop: 10,
     color: COLORS.text,
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '800',
     letterSpacing: -0.2,
   },
   metricLabel: {
-    marginTop: 4,
+    marginTop: 2,
     color: COLORS.textSoft,
-    fontSize: 12,
-    lineHeight: 16,
+    fontSize: 11,
+    lineHeight: 15,
+    fontWeight: '600',
   },
   actionButton: {
-    borderRadius: 22,
+    borderRadius: LAYOUT.radius,
     borderWidth: 1,
-    borderStyle: 'dashed',
     padding: 14,
     flexDirection: 'row',
     alignItems: 'center',
@@ -286,15 +247,14 @@ const styles = StyleSheet.create({
   },
   actionPrimary: {
     backgroundColor: COLORS.primary,
-    borderColor: 'rgba(255,253,248,0.22)',
+    borderColor: COLORS.primary,
   },
   actionSecondary: {
     backgroundColor: COLORS.surface,
     borderColor: COLORS.border,
   },
   actionPressed: {
-    transform: [{scale: 0.985}],
-    opacity: 0.96,
+    opacity: 0.92,
   },
   actionIcon: {
     flexShrink: 0,
@@ -312,13 +272,9 @@ const styles = StyleSheet.create({
     color: COLORS.white,
   },
   actionSubtitle: {
-    marginTop: 3,
+    marginTop: 2,
     color: COLORS.textSoft,
     fontSize: 13,
     lineHeight: 18,
-  },
-  actionChevron: {
-    transform: [{rotate: '180deg'}],
-    opacity: 0.85,
   },
 });

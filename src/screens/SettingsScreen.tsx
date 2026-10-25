@@ -22,6 +22,7 @@ type Props = {
   onBack: () => void;
   onSettingsChanged: () => void;
   onNotify: (toast: {message: string; icon: LineIconName; tone: 'info' | 'success' | 'warning' | 'error'}) => void;
+  onOpenTests?: () => void;
 };
 
 function ToggleRow({
@@ -62,7 +63,7 @@ function ToggleRow({
   );
 }
 
-export function SettingsScreen({onBack, onSettingsChanged, onNotify}: Props) {
+export function SettingsScreen({onBack, onSettingsChanged, onNotify, onOpenTests}: Props) {
   const [prefs, setPrefs] = useState<AppPreferences>(DEFAULT_PREFS);
   const [soundModalVisible, setSoundModalVisible] = useState(false);
   const [tempSoundName, setTempSoundName] = useState('Classic Chime');
@@ -229,6 +230,28 @@ export function SettingsScreen({onBack, onSettingsChanged, onNotify}: Props) {
               </View>
             </>
           ) : null}
+        </SurfaceCard>
+
+        <SurfaceCard>
+          <SectionHeader
+            eyebrow="Development"
+            title="Testing suite"
+            description="Run tests for vibrations, overlays, and call timer logic."
+          />
+          <Pressable
+            onPress={onOpenTests}
+            style={({pressed}) => [styles.testingButton, pressed && styles.testingButtonPressed]}>
+            <View style={styles.testingButtonLeft}>
+              <IconBadge name="play" tone="primary" size={28} />
+              <View>
+                <Text style={styles.testingButtonLabel}>Open Testing Suite</Text>
+                <Text style={styles.testingButtonDescription}>
+                  Test components and services in development mode
+                </Text>
+              </View>
+            </View>
+            <LineIcon name="back" size={16} color={COLORS.primary} style={{transform: [{rotate: '180deg'}]}} />
+          </Pressable>
         </SurfaceCard>
 
       </ScrollView>
@@ -523,5 +546,35 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     paddingVertical: 15,
     alignItems: 'center',
+  },
+  testingButton: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    borderRadius: 14,
+    backgroundColor: 'rgba(34,37,45,0.04)',
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  testingButtonPressed: {
+    opacity: 0.7,
+  },
+  testingButtonLeft: {
+    flexDirection: 'row',
+    gap: 12,
+    alignItems: 'center',
+    flex: 1,
+  },
+  testingButtonLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.text,
+    marginBottom: 2,
+  },
+  testingButtonDescription: {
+    fontSize: 12,
+    color: COLORS.textSoft,
   },
 });

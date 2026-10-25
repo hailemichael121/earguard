@@ -1,12 +1,19 @@
 import React, {useEffect, useMemo, useState} from 'react';
 import {Pressable, ScrollView, StyleSheet, Text, View} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
-import {COLORS} from '../constants';
+import {COLORS, LAYOUT} from '../constants';
 import {MagicBackground} from '../components/MagicBackground';
 import {IconBadge, SectionHeader, SurfaceCard} from '../components/Ui';
-import {LineIcon} from '../components/LineIcon';
+import {AssetIcon} from '../components/AssetIcon';
+import {WeekBarChart} from '../components/WeekBarChart';
 import {EarGuardNative} from '../native/earguard';
 import {sharedStyles} from '../styles';
+import {
+  buildWeekStats,
+  dayKeyFromTimestamp,
+  formatCallDate,
+  formatDuration,
+} from '../utils/callAnalytics';
 import type {CallHistoryEntry, Insights} from '../types';
 
 type Props = {
@@ -16,6 +23,7 @@ type Props = {
 export function CallsScreen({onBack}: Props) {
   const [insights, setInsights] = useState<Insights | null>(null);
   const [history, setHistory] = useState<CallHistoryEntry[]>([]);
+  const [selectedDay, setSelectedDay] = useState<string | null>(null);
 
   useEffect(() => {
     Promise.all([EarGuardNative.getInsights(), EarGuardNative.getCallHistory(50)])
@@ -34,18 +42,30 @@ export function CallsScreen({onBack}: Props) {
     [history],
   );
 
+  const weekStats = useMemo(() => buildWeekStats(history), [history]);
+
+  const selectedStats = useMemo(() => {
+    const activeKey = selectedDay ?? weekStats[weekStats.length - 1]?.key ?? null;
+    return weekStats.find(item => item.key === activeKey) ?? weekStats[weekStats.length - 1];
+  }, [selectedDay, weekStats]);
+
+  const selectedDayCalls = useMemo(
+    () => history.filter(entry => dayKeyFromTimestamp(entry.date) === selectedStats?.key),
+    [history, selectedStats?.key],
+  );
+
   return (
     <SafeAreaView style={sharedStyles.screen} edges={['top', 'left', 'right', 'bottom']}>
       <MagicBackground />
       <ScrollView contentContainerStyle={styles.page} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <Pressable onPress={onBack} style={styles.backButton}>
-            <LineIcon name="back" size={16} color={COLORS.text} />
+            <AssetIcon name="back" size={18} color={COLORS.text} />
           </Pressable>
           <View style={styles.headerCopy}>
             <Text style={styles.eyebrow}>Calls</Text>
             <Text style={styles.title}>Call history</Text>
-            <Text style={styles.subtitle}>Top durations first, with recent calls below.</Text>
+            <Text style={styles.subtitle}>Duration trends and recent activity.</Text>
           </View>
         </View>
 
@@ -55,24 +75,51 @@ export function CallsScreen({onBack}: Props) {
           <MiniMetric icon="spark" label="Streak" value={`${insights?.currentStreak ?? 0}d`} />
         </View>
 
-        <SurfaceCard>
+        <SurfaceCard variant="bordered">
           <SectionHeader
-            eyebrow="Longest"
-            title="Top 3 longest calls"
-            description="A compact view of the longest recent calls."
+            eyebrow="Week"
+            title="Calls per day"
+            description="Tap a bar to inspect that day's calls."
+            action={<IconBadge name="chart" tone="primary" size={32} />}
           />
+          <WeekBarChart data={weekStats} selectedKey={selectedDay} onSelectDay={setSelectedDay} />
+
+          {selectedDayCalls.length > 0 ? (
+            <View style={styles.dayCalls}>
+              {selectedDayCalls.map((item, index) => (
+                <View
+                  key={item.id}
+                  style={[styles.dayCallRow, index === selectedDayCalls.length - 1 && styles.dayCallRowLast]}>
+                  <View style={styles.dayCallCopy}>
+                    <Text style={styles.dayCallName} numberOfLines={1}>
+                      {item.name}
+                    </Text>
+                    <Text style={styles.dayCallMeta}>{formatDuration(item.durationSeconds)}</Text>
+                  </View>
+                  <Text style={styles.dayCallDate}>{formatCallDate(item.date)}</Text>
+                </View>
+              ))}
+            </View>
+          ) : (
+            <Text style={styles.emptyInline}>No calls recorded for this day.</Text>
+          )}
+        </SurfaceCard>
+
+        <SurfaceCard variant="bordered">
+          <SectionHeader eyebrow="Longest" title="Top 3 longest calls" />
           <View style={styles.list}>
             {topLongest.length > 0 ? (
-              topLongest.map(item => (
-                <View key={item.id} style={styles.longestRow}>
-                  <IconBadge name="phone" tone="primary" size={28} />
+              topLongest.map((item, index) => (
+                <View key={item.id} style={[styles.longestRow, index === topLongest.length - 1 && styles.rowLast]}>
+                  <IconBadge name="phone" tone="primary" size={32} />
                   <View style={styles.longestCopy}>
-                    <Text style={styles.longestName}>{item.name}</Text>
+                    <Text style={styles.longestName} numberOfLines={1}>
+                      {item.name}
+                    </Text>
                     <Text style={styles.longestMeta}>
                       {formatDuration(item.durationSeconds)} · {formatCallDate(item.date)}
                     </Text>
                   </View>
-                  <Text style={styles.longestValue}>{formatDuration(item.durationSeconds)}</Text>
                 </View>
               ))
             ) : (
@@ -81,16 +128,20 @@ export function CallsScreen({onBack}: Props) {
           </View>
         </SurfaceCard>
 
-        <SurfaceCard>
-          <SectionHeader eyebrow="Recent" title="Recent calls" description="Chronological call list with duration and type." />
+        <SurfaceCard variant="flat">
+          <SectionHeader eyebrow="Recent" title="All recent calls" />
           <View style={styles.recentList}>
             {history.length > 0 ? (
-              history.map(item => (
-                <View key={item.id} style={styles.recentRow}>
+              history.map((item, index) => (
+                <View key={item.id} style={[styles.recentRow, index === history.length - 1 && styles.rowLast]}>
                   <View style={styles.recentHead}>
                     <View style={styles.recentNameWrap}>
-                      <Text style={styles.recentName}>{item.name}</Text>
-                      <Text style={styles.recentNumber}>{item.number}</Text>
+                      <Text style={styles.recentName} numberOfLines={1}>
+                        {item.name}
+                      </Text>
+                      <Text style={styles.recentNumber} numberOfLines={1}>
+                        {item.number}
+                      </Text>
                     </View>
                     <Text style={styles.recentType}>{item.type}</Text>
                   </View>
@@ -120,137 +171,154 @@ function MiniMetric({icon, label, value}: {icon: 'chart' | 'timer' | 'spark'; la
   );
 }
 
-function formatDuration(totalSeconds: number) {
-  const minutes = Math.max(0, Math.floor(totalSeconds / 60));
-  const seconds = Math.max(0, totalSeconds % 60);
-  if (minutes <= 0) {
-    return `${seconds}s`;
-  }
-  return `${minutes}m ${seconds.toString().padStart(2, '0')}s`;
-}
-
-function formatCallDate(value: string) {
-  const parsed = Number(value);
-  if (Number.isNaN(parsed)) {
-    return value;
-  }
-  return new Date(parsed).toLocaleDateString(undefined, {
-    month: 'short',
-    day: 'numeric',
-  });
-}
-
 const styles = StyleSheet.create({
   page: {
     padding: 20,
     paddingBottom: 36,
-    gap: 16,
+    gap: 14,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: 14,
+    gap: 12,
   },
   backButton: {
     width: 40,
     height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,253,248,0.82)',
+    borderRadius: LAYOUT.radiusSm,
+    backgroundColor: COLORS.surface,
     borderWidth: 1,
-    borderStyle: 'dashed',
     borderColor: COLORS.border,
     alignItems: 'center',
     justifyContent: 'center',
+    ...LAYOUT.shadow,
   },
   headerCopy: {
     flex: 1,
   },
   eyebrow: {
     color: COLORS.accent,
-    fontSize: 12,
-    fontWeight: '800',
-    letterSpacing: 1.1,
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.9,
     textTransform: 'uppercase',
-    marginBottom: 6,
+    marginBottom: 4,
   },
   title: {
     color: COLORS.text,
-    fontSize: 28,
-    fontWeight: '900',
-    letterSpacing: -0.6,
+    fontSize: 26,
+    fontWeight: '800',
+    letterSpacing: -0.5,
   },
   subtitle: {
-    marginTop: 6,
+    marginTop: 4,
     color: COLORS.textSoft,
     fontSize: 14,
     lineHeight: 20,
   },
   metricRow: {
     flexDirection: 'row',
-    gap: 10,
+    gap: 8,
   },
   metricCard: {
     flex: 1,
-    borderRadius: 18,
+    borderRadius: LAYOUT.radiusSm,
     padding: 12,
-    backgroundColor: 'rgba(255,253,248,0.92)',
+    backgroundColor: COLORS.surface,
     borderWidth: 1,
-    borderStyle: 'dashed',
     borderColor: COLORS.border,
+    ...LAYOUT.shadow,
   },
   metricValue: {
-    marginTop: 10,
+    marginTop: 8,
     color: COLORS.text,
-    fontSize: 18,
-    fontWeight: '900',
+    fontSize: 17,
+    fontWeight: '800',
   },
   metricLabel: {
-    marginTop: 3,
+    marginTop: 2,
+    color: COLORS.textSoft,
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  dayCalls: {
+    marginTop: 14,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.borderLight,
+    paddingTop: 10,
+    gap: 0,
+  },
+  dayCallRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.borderLight,
+  },
+  dayCallRowLast: {
+    borderBottomWidth: 0,
+  },
+  dayCallCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  dayCallName: {
+    color: COLORS.text,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  dayCallMeta: {
+    marginTop: 2,
     color: COLORS.textSoft,
     fontSize: 12,
   },
+  dayCallDate: {
+    color: COLORS.textSoft,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  emptyInline: {
+    marginTop: 12,
+    color: COLORS.textSoft,
+    fontSize: 13,
+  },
   list: {
-    gap: 10,
+    gap: 0,
   },
   longestRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    padding: 12,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderStyle: 'dashed',
-    borderColor: COLORS.border,
-    backgroundColor: 'rgba(243,238,228,0.72)',
+    gap: 12,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.borderLight,
+  },
+  rowLast: {
+    borderBottomWidth: 0,
   },
   longestCopy: {
     flex: 1,
+    minWidth: 0,
   },
   longestName: {
     color: COLORS.text,
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: '700',
   },
   longestMeta: {
     marginTop: 2,
     color: COLORS.textSoft,
     fontSize: 12,
   },
-  longestValue: {
-    color: COLORS.text,
-    fontSize: 13,
-    fontWeight: '900',
-  },
   recentList: {
-    gap: 10,
+    gap: 0,
   },
   recentRow: {
-    padding: 12,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderStyle: 'dashed',
-    borderColor: COLORS.border,
-    backgroundColor: 'rgba(255,253,248,0.92)',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.borderLight,
   },
   recentHead: {
     flexDirection: 'row',
@@ -260,26 +328,27 @@ const styles = StyleSheet.create({
   },
   recentNameWrap: {
     flex: 1,
+    minWidth: 0,
   },
   recentName: {
     color: COLORS.text,
     fontSize: 15,
-    fontWeight: '800',
+    fontWeight: '700',
   },
   recentNumber: {
-    marginTop: 3,
+    marginTop: 2,
     color: COLORS.textSoft,
     fontSize: 12,
   },
   recentType: {
     color: COLORS.accent,
-    fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 0.8,
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.6,
     textTransform: 'uppercase',
   },
   recentMetaRow: {
-    marginTop: 10,
+    marginTop: 8,
     flexDirection: 'row',
     justifyContent: 'space-between',
     gap: 12,

@@ -17,10 +17,14 @@ import {HomeScreen} from './src/screens/HomeScreen';
 import {EnhancedOnboardingScreen} from './src/screens/EnhancedOnboardingScreen';
 import {SettingsScreen} from './src/screens/SettingsScreen';
 import {SplashScreen} from './src/screens/SplashScreen';
+import {TestingScreen} from './src/screens/TestingScreen';
 import {EarGuardNative} from './src/native/earguard';
 import {LineIcon, type LineIconName} from './src/components/LineIcon';
+import {FloatingCallerIdCard} from './src/components/FloatingCallerIdCard';
+import {PostCallSummaryCard} from './src/components/PostCallSummaryCard';
+import {useEarGuardCallSession} from './src/hooks/useEarGuardCallSession';
 
-type Screen = 'splash' | 'onboarding' | 'home' | 'settings' | 'about' | 'calls';
+type Screen = 'splash' | 'onboarding' | 'home' | 'settings' | 'about' | 'calls' | 'testing';
 type ToastTone = 'info' | 'success' | 'warning' | 'error';
 
 type ToastState = {
@@ -45,6 +49,11 @@ function AppContent() {
   const lastBackPress = useRef(0);
 
   const screen = stack[stack.length - 1];
+  const monitoringEnabled = screen !== 'splash' && screen !== 'onboarding';
+  const callSession = useEarGuardCallSession({
+    enabled: monitoringEnabled && Platform.OS === 'android',
+    refreshToken,
+  });
 
   useEffect(() => {
     if (Platform.OS !== 'android') {
@@ -241,6 +250,10 @@ function AppContent() {
           <HomeScreen
             setupCompleted
             refreshToken={refreshToken}
+            isInCall={callSession.isInCall}
+            statusMessage={callSession.statusMessage}
+            callerName={callSession.callerName}
+            intervalMinutes={callSession.intervalMinutes}
             onOpenSettings={() => pushScreen('settings')}
             onOpenCalls={() => pushScreen('calls')}
             onOpenAbout={(interval, sound) => {
@@ -255,6 +268,14 @@ function AppContent() {
             onBack={goBack}
             onSettingsChanged={() => setRefreshToken(token => token + 1)}
             onNotify={showToast}
+            onOpenTests={() => pushScreen('testing')}
+          />
+        )}
+
+        {screen === 'testing' && (
+          <TestingScreen
+            onBack={goBack}
+            onNotify={showToast}
           />
         )}
 
@@ -268,6 +289,24 @@ function AppContent() {
 
         {screen === 'calls' && <CallsScreen onBack={goBack} />}
       </Animated.View>
+
+      {monitoringEnabled && Platform.OS === 'android' ? (
+        <>
+          <FloatingCallerIdCard
+            visible={callSession.showCallerCard}
+            callerName={callSession.callerName}
+            callerNumber={callSession.callerNumber}
+            intervalMinutes={callSession.intervalMinutes}
+          />
+          <PostCallSummaryCard
+            visible={callSession.showPostCallSummary}
+            callerName={callSession.postCallCallerName}
+            durationSeconds={callSession.postCallDurationSeconds}
+            earSwitchCount={callSession.postCallEarSwitchCount}
+            onDismiss={callSession.dismissPostCallSummary}
+          />
+        </>
+      ) : null}
 
       {toast ? (
         <View pointerEvents="box-none" style={[styles.toastHost, {paddingTop: insets.top + 10}]}>

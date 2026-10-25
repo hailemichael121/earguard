@@ -62,28 +62,8 @@ class ForegroundService : Service() {
       startForeground(NOTIFICATION_ID, notification)
     }
 
-    if (phoneState == TelephonyManager.EXTRA_STATE_OFFHOOK && !isTimerRunning) {
-      val reminderEnabled = prefs.getBoolean("enabled", true)
-      if (reminderEnabled) {
-        isTimerRunning = true
-        reminderHandler?.postDelayed(
-            {
-              triggerReminder(
-                  useSound = useSound,
-                  selectedSound = selectedSound ?: "reminder3.mp3",
-                  intervalMinutes = intervalMinutes.toInt(),
-                  quietHoursEnabled = quietHoursEnabled,
-                  quietStart = quietStart,
-                  quietEnd = quietEnd,
-                  smartIntensity = smartIntensity,
-              )
-              isTimerRunning = false
-              Log.d(TAG, "[sharuk] Reminder triggered for sound: $selectedSound")
-            },
-            intervalMinutes * 60 * 1000,
-        )
-      }
-    } else if (phoneState == TelephonyManager.EXTRA_STATE_IDLE) {
+    // Interval reminders are handled by JS CallTimerService; FG service keeps the process alive.
+    if (phoneState == TelephonyManager.EXTRA_STATE_IDLE) {
       reminderHandler?.removeCallbacksAndMessages(null)
       isTimerRunning = false
     }

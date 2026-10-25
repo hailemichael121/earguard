@@ -16,6 +16,13 @@ type EarGuardNativeModule = {
   checkOverlayPermission: () => Promise<boolean>;
   requestOverlayPermission: () => Promise<void>;
   showOverlay: (callerInfo: string) => Promise<void>;
+  showCallOverlay: (options: {
+    title: string;
+    body: string;
+    subtext?: string;
+    dismissable?: boolean;
+    autoHideMs?: number;
+  }) => Promise<void>;
   hideOverlay: () => Promise<void>;
   startForegroundService: (
     phoneState: string,

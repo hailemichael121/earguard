@@ -44,7 +44,7 @@ export function AboutScreen({interval, selectedSound, onBack}: Props) {
 
         <SurfaceCard>
           <View style={styles.brandRow}>
-            <AppMark source={require('../../assets/icons/app-icon.png')} size={64} />
+            <AppMark source={require('../../assets/images/app-icon-image.png')} size={64} />
             <View style={styles.brandCopy}>
               <Text style={styles.brandTitle}>Healthy call habits</Text>
               <Text style={styles.brandText}>
@@ -221,7 +221,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,253,248,0.82)',
     borderWidth: 1,
     borderColor: COLORS.border,
-    borderStyle: 'dashed',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -328,7 +327,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(243,238,228,0.72)',
     borderWidth: 1,
     borderColor: COLORS.border,
-    borderStyle: 'dashed',
   },
   detailCopy: {
     flex: 1,
@@ -353,7 +351,6 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     borderWidth: 1,
     borderColor: COLORS.border,
-    borderStyle: 'dashed',
     backgroundColor: 'rgba(243,238,228,0.72)',
   },
   snapshotValue: {
@@ -379,7 +376,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,253,248,0.88)',
     borderWidth: 1,
     borderColor: COLORS.border,
-    borderStyle: 'dashed',
   },
   flagLabel: {
     color: COLORS.textSoft,

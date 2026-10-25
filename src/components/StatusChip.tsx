@@ -123,7 +123,6 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   shellDashed: {
-    borderStyle: 'dashed',
   },
   shellDimmed: {
     borderColor: COLORS.border,
